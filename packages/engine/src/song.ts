@@ -69,12 +69,20 @@ export const DEFAULT_VOICE: VoiceSettings = { voice: "low", larynx: 0, twang: 20
 /** The example rock phrase from the Grit Lab prototype. */
 export function exampleSong(): Song {
   const raw: Array<[number, number, number, Note["vowel"], Tone | null]> = [
-    [57, 0, 4, "A", null], [60, 4, 2, "E", null], [62, 6, 2, "A", null], [64, 8, 6, "O", null],
-    [62, 16, 2, "I", null], [60, 18, 2, "A", null],
+    [57, 0, 4, "A", null],
+    [60, 4, 2, "E", null],
+    [62, 6, 2, "A", null],
+    [64, 8, 6, "O", null],
+    [62, 16, 2, "I", null],
+    [60, 18, 2, "A", null],
     [57, 20, 8, "A", { mode: "curbing", effect: "growl", amount: 50, ff: 0 }],
-    [57, 32, 2, "E", null], [60, 34, 2, "A", null], [64, 36, 4, "A", null],
+    [57, 32, 2, "E", null],
+    [60, 34, 2, "A", null],
+    [64, 36, 4, "A", null],
     [67, 40, 8, "O", { mode: "edge", effect: "none", amount: 0, ff: 45 }],
-    [64, 48, 4, "A", null], [62, 52, 2, "E", null], [60, 54, 2, "A", null],
+    [64, 48, 4, "A", null],
+    [62, 52, 2, "E", null],
+    [60, 54, 2, "A", null],
     [57, 56, 8, "O", { mode: "overdrive", effect: "growl", amount: 45, ff: 35 }],
   ];
   return {
@@ -84,6 +92,13 @@ export function exampleSong(): Song {
     bars: 4,
     tone: { mode: "curbing", effect: "none", amount: 40, ff: 0 },
     voice: { ...DEFAULT_VOICE },
-    notes: raw.map(([pitch, start, length, vowel, tone], i) => ({ id: `n${i + 1}`, pitch, start, length, vowel, tone })),
+    notes: raw.map(([pitch, start, length, vowel, tone], i) => ({
+      id: `n${i + 1}`,
+      pitch,
+      start,
+      length,
+      vowel,
+      tone,
+    })),
   };
 }

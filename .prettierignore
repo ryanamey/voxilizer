@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+reference/
+apps/web/drizzle/
+apps/web/src/components/ui/
+.next
+node_modules
+apps/web/next-env.d.ts
+apps/web/test-results/
+apps/web/playwright-report/

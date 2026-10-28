@@ -24,7 +24,11 @@ export function createRng(seed: number): () => number {
 }
 
 /** Coefficients of a second-order resonator (Klatt-style formant filter). */
-export function resonatorCoefs(freq: number, bandwidth: number, sampleRate: number): [number, number, number] {
+export function resonatorCoefs(
+  freq: number,
+  bandwidth: number,
+  sampleRate: number,
+): [number, number, number] {
   const T = 1 / sampleRate;
   const c = -Math.exp(-2 * Math.PI * bandwidth * T);
   const b = 2 * Math.exp(-Math.PI * bandwidth * T) * Math.cos(2 * Math.PI * freq * T);

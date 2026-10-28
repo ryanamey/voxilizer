@@ -94,7 +94,10 @@ export function analyzeLoad(song: Song): LoadReport {
     });
   }
   if (heaviest >= 4) {
-    warnings.push({ kind: "stage-4", message: "Stage 4+ notes: build each source alone before you sing this combination." });
+    warnings.push({
+      kind: "stage-4",
+      message: "Stage 4+ notes: build each source alone before you sing this combination.",
+    });
   }
 
   return {
@@ -105,4 +108,41 @@ export function analyzeLoad(song: Song): LoadReport {
     noteStages,
     warnings,
   };
+}
+
+/** Plain-language notes for the tone designer: why a setting is heavy or unusual. */
+export function toneNotes(
+  tone: Tone,
+  voice: VoiceSettings,
+  pitchHz: number,
+  fromRecording = false,
+): string[] {
+  const notes: string[] = [];
+  const amount = tone.effect === "none" ? 0 : tone.amount;
+  const aryepiglottic = ARYEPIGLOTTIC_EFFECTS.includes(tone.effect) && amount > 0;
+  const high = fromRecording ? pitchHz > 400 : voice.voice === "low" ? pitchHz > 300 : pitchHz > 520;
+  if (tone.ff > 0 && aryepiglottic)
+    notes.push("Two noise sources at once: learn each alone before stacking them.");
+  if (amount > 75 || tone.ff > 75)
+    notes.push("High effect amount: reach it in small steps from 5–10%, in short reps.");
+  if (tone.effect === "grunt" && amount > 0 && high)
+    notes.push("Grunts are usually low in the range. A high grunt here is a sound experiment, not a target.");
+  if (fromRecording) {
+    notes.push(
+      "This preview adds the effect to your clean take. In real singing your technique produces it, so treat it as a direction, not proof you're ready.",
+    );
+  } else {
+    if (tone.mode === "neutral" && tone.ff > 50)
+      notes.push(
+        "Heavy distortion on a soft, breathy carrier is uncommon; most singers put it on a firmer carrier.",
+      );
+    if (tone.mode === "edge" && high && tone.ff > 60)
+      notes.push("High, sharp and heavily distorted is the heaviest-load corner. Build it last.");
+    if (voice.larynx < -60 && tone.mode === "edge")
+      notes.push("Edge usually rides a raised larynx; a very low larynx pulls against it.");
+  }
+  notes.push(
+    "Use this as a target to hear, then follow the staged lessons. Don't force your voice to match it.",
+  );
+  return notes;
 }

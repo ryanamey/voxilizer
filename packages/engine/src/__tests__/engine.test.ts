@@ -16,7 +16,8 @@ import {
 function energyAt(x: Float32Array, freq: number, sr: number, from: number, len: number): number {
   const w = (2 * Math.PI * freq) / sr;
   const c = 2 * Math.cos(w);
-  let s1 = 0, s2 = 0;
+  let s1 = 0,
+    s2 = 0;
   for (let i = from; i < from + len; i++) {
     const s0 = x[i]! + c * s1 - s2;
     s2 = s1;
@@ -78,7 +79,8 @@ describe("effects leave their acoustic fingerprint", () => {
   const sr = 44100;
   const pitch = 52; // E3, ~165 Hz
   const f0 = midiToHz(pitch);
-  const from = Math.floor(sr * 0.8), len = Math.floor(sr * 0.8);
+  const from = Math.floor(sr * 0.8),
+    len = Math.floor(sr * 0.8);
   const ratio = (tone: Tone) => {
     const x = renderTone(tone, "A", pitch, DEFAULT_VOICE).samples;
     return energyAt(x, f0 / 2, sr, from, len) / energyAt(x, f0, sr, from, len);

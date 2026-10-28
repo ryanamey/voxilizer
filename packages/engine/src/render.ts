@@ -100,16 +100,29 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
 
   // ---- per-block control tracks ----
   const k = {
-    midi: new Float32Array(nb), amp: new Float32Array(nb), oq: new Float32Array(nb), cl: new Float32Array(nb),
-    tilt: new Float32Array(nb), gain: new Float32Array(nb), asp: new Float32Array(nb), cr: new Float32Array(nb),
-    gr: new Float32Array(nb), ra: new Float32Array(nb), gu: new Float32Array(nb), d: new Float32Array(nb),
+    midi: new Float32Array(nb),
+    amp: new Float32Array(nb),
+    oq: new Float32Array(nb),
+    cl: new Float32Array(nb),
+    tilt: new Float32Array(nb),
+    gain: new Float32Array(nb),
+    asp: new Float32Array(nb),
+    cr: new Float32Array(nb),
+    gr: new Float32Array(nb),
+    ra: new Float32Array(nb),
+    gu: new Float32Array(nb),
+    d: new Float32Array(nb),
     ring: new Float32Array(nb),
   };
   const bF = new Float32Array(nb * 5);
   const bBW = new Float32Array(nb * 5);
 
   const smooth = (tau: number) => 1 - Math.exp(-BLOCK / (SR * tau));
-  const kPitch = smooth(0.03), kForm = smooth(0.045), kEff = smooth(0.05), kAtk = smooth(0.02), kRel = smooth(0.045);
+  const kPitch = smooth(0.03),
+    kForm = smooth(0.045),
+    kEff = smooth(0.05),
+    kAtk = smooth(0.02),
+    kRel = smooth(0.045);
 
   let cur: Smoothed | null = null;
   let idx = 0;
@@ -122,7 +135,15 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
     const tg = n ? targetFor(n, opts.songTone, opts.voice) : null;
     let ampT = n ? 1 : 0;
     // Re-articulate repeated pitches with a short dip.
-    if (n && prevNote && prevNote !== n && prevNote.start + prevNote.length === n.start && prevNote.pitch === n.pitch && t - n.start * spb < 0.03) ampT = 0.45;
+    if (
+      n &&
+      prevNote &&
+      prevNote !== n &&
+      prevNote.start + prevNote.length === n.start &&
+      prevNote.pitch === n.pitch &&
+      t - n.start * spb < 0.03
+    )
+      ampT = 0.45;
 
     if (!cur && tg) cur = { ...tg, F: tg.F.slice(), BW: tg.BW.slice(), amp: 0 };
     if (cur && tg) {
@@ -166,29 +187,62 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
   let cycle = 0;
   while (pos < N) {
     const b = Math.floor(pos / BLOCK);
-    const amp0 = k.amp[b]!, d = k.d[b]!, gr = k.gr[b]!, cr = k.cr[b]!, gu = k.gu[b]!;
+    const amp0 = k.amp[b]!,
+      d = k.d[b]!,
+      gr = k.gr[b]!,
+      cr = k.cr[b]!,
+      gu = k.gu[b]!;
     let T = (SR / midiToHz(k.midi[b]!)) * (1 + (0.004 + d * 0.025 + gr * 0.01 + gu * 0.035) * (R() * 2 - 1));
     let amp = amp0 * (1 + (0.03 + d * 0.3 + gu * 0.2) * (R() * 2 - 1));
-    let oq = k.oq[b]!, cl = k.cl[b]!;
-    if (cr > 0 && R() < 0.75 * cr) { T *= 1.5 + 1.6 * R(); oq = 0.22; cl = 0.3; amp *= 0.6 + 0.7 * R(); }
-    if (gr > 0 && cycle % 2) { amp *= 1 - 0.55 * gr; T *= 1 + 0.05 * gr; }
+    let oq = k.oq[b]!,
+      cl = k.cl[b]!;
+    if (cr > 0 && R() < 0.75 * cr) {
+      T *= 1.5 + 1.6 * R();
+      oq = 0.22;
+      cl = 0.3;
+      amp *= 0.6 + 0.7 * R();
+    }
+    if (gr > 0 && cycle % 2) {
+      amp *= 1 - 0.55 * gr;
+      T *= 1 + 0.05 * gr;
+    }
     if (d > 0 && cycle % 2) amp *= 1 - 0.3 * d;
-    if (gu > 0) { amp *= 1 - 0.7 * gu; oq = oq + (0.85 - oq) * gu; }
+    if (gu > 0) {
+      amp *= 1 - 0.7 * gu;
+      oq = oq + (0.85 - oq) * gu;
+    }
     const L = Math.max(8, Math.round(T));
     const tp = oq * (1 - cl) * L;
     const tn = Math.max(2, oq * cl * L);
     if (amp0 > 0.002) {
       for (let j = 0; j < L && pos + j < N; j++) {
-        const v = j < tp ? 0.5 * (1 - Math.cos((Math.PI * j) / tp)) : j < tp + tn ? Math.cos((Math.PI / 2) * ((j - tp) / tn)) : 0;
+        const v =
+          j < tp
+            ? 0.5 * (1 - Math.cos((Math.PI * j) / tp))
+            : j < tp + tn
+              ? Math.cos((Math.PI / 2) * ((j - tp) / tn))
+              : 0;
         flow[pos + j] = amp * v;
       }
-      if (d > 0) { // false folds: noisy burst after each closure
-        const len = Math.round(L * 0.45), g = 0.9 * d * (0.4 + R()) * amp0, s0 = pos + Math.round(tp + tn);
-        for (let j = 0; j < len && s0 + j < N; j++) extra[s0 + j]! += g * (R() * 2 - 1) * Math.exp(-j / (len * 0.3));
+      if (d > 0) {
+        // false folds: noisy burst after each closure
+        const len = Math.round(L * 0.45),
+          g = 0.9 * d * (0.4 + R()) * amp0,
+          s0 = pos + Math.round(tp + tn);
+        for (let j = 0; j < len && s0 + j < N; j++)
+          extra[s0 + j]! += g * (R() * 2 - 1) * Math.exp(-j / (len * 0.3));
       }
-      if (gr > 0 && cycle % 2 === 0) { // growl: flutter every other cycle → sub-harmonic
-        const len = Math.round(L * 1.2), g = 0.7 * gr * amp0 * (0.6 + 0.8 * R()), s0 = pos + Math.round(tp);
-        for (let j = 0; j < len && s0 + j < N; j++) extra[s0 + j]! += g * (R() * 2 - 1) * Math.exp(-j / (len * 0.35)) * (0.5 + 0.5 * Math.sin((2 * Math.PI * j) / (len * 0.5)));
+      if (gr > 0 && cycle % 2 === 0) {
+        // growl: flutter every other cycle → sub-harmonic
+        const len = Math.round(L * 1.2),
+          g = 0.7 * gr * amp0 * (0.6 + 0.8 * R()),
+          s0 = pos + Math.round(tp);
+        for (let j = 0; j < len && s0 + j < N; j++)
+          extra[s0 + j]! +=
+            g *
+            (R() * 2 - 1) *
+            Math.exp(-j / (len * 0.35)) *
+            (0.5 + 0.5 * Math.sin((2 * Math.PI * j) / (len * 0.5)));
       }
     }
     pos += L;
@@ -203,8 +257,10 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
     const b = Math.min(nb - 1, Math.floor(s0 / BLOCK));
     const ra = k.ra[b]! * k.amp[b]!;
     if (ra <= 0.01) continue;
-    const len = Math.floor(SR * (0.006 + 0.012 * R())), g = 1.4 * ra * (0.4 + 0.6 * R());
-    for (let j = 0; j < len && s0 + j < N; j++) extra[s0 + j]! += g * (R() * 2 - 1) * Math.exp(-j / (len * 0.25));
+    const len = Math.floor(SR * (0.006 + 0.012 * R())),
+      g = 1.4 * ra * (0.4 + 0.6 * R());
+    for (let j = 0; j < len && s0 + j < N; j++)
+      extra[s0 + j]! += g * (R() * 2 - 1) * Math.exp(-j / (len * 0.25));
     if (s0 < N) extra[s0]! += g * 1.5;
   }
 
@@ -214,13 +270,22 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
   const co = new Float64Array(15);
   const vsBase = VOICES[opts.voice.voice].scale * (1 + 0.11 * (opts.voice.larynx / 100));
   const ringC = resonatorCoefs(3000 * vsBase, 260, SR);
-  let prev = 0, lp = 0, gate = 0, gT = 0, gNext = 0, x1 = 0, y1 = 0, peak = 1e-6;
+  let prev = 0,
+    lp = 0,
+    gate = 0,
+    gT = 0,
+    gNext = 0,
+    x1 = 0,
+    y1 = 0,
+    peak = 1e-6;
   for (let n = 0; n < N; n++) {
     const b = Math.floor(n / BLOCK);
     if (n % BLOCK === 0) {
       for (let r = 0; r < 5; r++) {
         const c = resonatorCoefs(Math.min(bF[b * 5 + r]!, SR * 0.45), bBW[b * 5 + r]!, SR);
-        co[r * 3] = c[0]; co[r * 3 + 1] = c[1]; co[r * 3 + 2] = c[2];
+        co[r * 3] = c[0];
+        co[r * 3 + 1] = c[1];
+        co[r * 3 + 2] = c[2];
       }
     }
     const df = (flow[n]! - prev) * 30 * k.gain[b]!;
@@ -228,7 +293,10 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
     let noise = (R() * 2 - 1) * k.asp[b]! * (0.25 + flow[n]!) * 0.6 * Math.min(1, k.amp[b]! * 1.5);
     const gu = k.gu[b]!;
     if (gu > 0) {
-      if (n >= gNext) { gT = R(); gNext = n + Math.floor(SR / (60 + 60 * R())); }
+      if (n >= gNext) {
+        gT = R();
+        gNext = n + Math.floor(SR / (60 + 60 * R()));
+      }
       gate += (gT - gate) * 0.02;
       noise *= 0.4 + 1.4 * gate;
     }
@@ -253,13 +321,18 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
   }
 
   // ---- gentle levelling (like a vocal compressor) and normalisation ----
-  let env = 0, gs = 1;
-  const ke = 1 - Math.exp(-1 / (0.08 * SR)), kg = 1 - Math.exp(-1 / (0.05 * SR));
+  let env = 0,
+    gs = 1;
+  const ke = 1 - Math.exp(-1 / (0.08 * SR)),
+    kg = 1 - Math.exp(-1 / (0.05 * SR));
   for (let n = 0; n < N; n++) {
     env += (y[n]! * y[n]! - env) * ke;
     const rms = Math.sqrt(env);
     const b = Math.floor(n / BLOCK);
-    const want = k.amp[b]! > 0.2 && rms > peak * 0.005 ? Math.max(0.35, Math.min(4, Math.pow((peak * 0.3) / rms, 0.65))) : gs;
+    const want =
+      k.amp[b]! > 0.2 && rms > peak * 0.005
+        ? Math.max(0.35, Math.min(4, Math.pow((peak * 0.3) / rms, 0.65)))
+        : gs;
     gs += (want - gs) * kg;
     y[n] = y[n]! * gs;
   }

@@ -36,11 +36,18 @@ a Claude Docs artifact owned by the founder). Key facts the code relies on:
 ## Architecture
 
 ```
-apps/web            Next.js 16 (App Router, Turbopack), React 19, Tailwind v4
-  src/audio/        AudioEngine (main thread), render.worker.ts (Web Worker)
-  public/worklets/  player.js — AudioWorklet playback (plain JS, no imports)
-packages/engine     @voxilizer/engine — pure TypeScript sound engine, no DOM/React
-reference/          grit-lab.html — the original prototype; the sound reference
+apps/web                Next.js 16 (App Router, Turbopack, Cache Components), React 19, Tailwind v4, shadcn/ui
+  src/app/(marketing)/  public website
+  src/app/(auth)/       sign-in, sign-up (Neon Auth), server actions
+  src/app/dashboard/    signed-in area; grit-lab/ is the first section
+  src/components/grit-lab/  the Grit Lab UI (Zustand store + zundo undo)
+  src/lib/              env (Zod), auth, DAL (requireUser), songs repository
+  src/db/               Drizzle schema + client; migrations in apps/web/drizzle/
+  src/proxy.ts          redirects signed-out users from /dashboard
+  src/audio/            AudioEngine (main thread), render.worker.ts (Web Worker)
+  public/worklets/      player.js — AudioWorklet playback (plain JS, no imports)
+packages/engine         @voxilizer/engine — pure TypeScript sound engine, no DOM/React
+reference/              grit-lab.html — the original prototype; the sound reference
 ```
 
 Three threads, one job each: **UI** on the main thread · **rendering** in a Web Worker ·
@@ -58,10 +65,14 @@ the buffer to the worklet, which reports playback position ~30×/s.
 
 ## Stack decisions
 
-Now: Next.js, TypeScript strict, Tailwind, Zod, pnpm workspace, Vitest.
-Add when the step needs it: shadcn/ui, Zustand + zundo (editor state and undo), Neon + Drizzle,
-Better Auth, Sentry, IndexedDB local-first saving, Stripe, Cloudflare R2, ONNX Runtime Web.
+In use: Next.js, TypeScript strict, Tailwind, shadcn/ui, Zod, react-hook-form, Zustand + zundo,
+Neon Postgres + Drizzle, Neon Auth (managed Better Auth, beta package), Vitest, Playwright, Prettier,
+GitHub Actions, Vercel.
+Add when the step needs it: Sentry, Resend, Stripe, Cloudflare R2, ONNX Runtime Web.
 Later: Rust → WASM port of the engine (for real-time feedback, native apps, a DAW plugin).
+
+Neon branches: `production` (Vercel env vars only) and `development` (`apps/web/.env.local`, git-ignored).
+Never commit secrets. Schema changes go through Drizzle migrations, applied to development first.
 
 Team: the founder (product, architecture, and the ears) plus Claude (code). Keep tooling minimal.
 
@@ -69,7 +80,11 @@ Team: the founder (product, architecture, and the ears) plus Claude (code). Keep
 
 - Next.js 16 has breaking changes from older versions. Read `apps/web/AGENTS.md` and the bundled
   docs in `node_modules/next/dist/docs/` before using an unfamiliar API.
-- `pnpm test` (engine tests), `pnpm typecheck`, `pnpm lint`, `pnpm build` must pass before committing.
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` and the Playwright
+  tests must pass before committing (CI runs the same).
+- Every server action and page that touches user data calls `requireUser()` and validates input with
+  Zod; song queries are always scoped by `user_id`.
+- Cache Components: read the session inside `<Suspense>`; avoid `useSearchParams` in big client trees.
 - Changing a number in `packages/engine/src/constants.ts` or `render.ts` changes how every song sounds.
   Do it deliberately and say so in the commit message.
 - UI copy: plain, singer-facing language. Name things by what singers recognise.

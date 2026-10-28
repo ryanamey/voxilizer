@@ -37,10 +37,50 @@ export interface ModeSpec {
 
 /** Carrier modes. Labels follow Complete Vocal Technique terminology (to be licensed or renamed before launch). */
 export const MODES: Record<ModeId, ModeSpec> = {
-  neutral: { label: "Neutral", hint: "soft", oq: 0.72, cl: 0.45, tilt: 0.55, asp: 0.1, gain: 0.65, f1: 1.0, ring: 0.0 },
-  curbing: { label: "Curbing", hint: "held", oq: 0.58, cl: 0.38, tilt: 0.32, asp: 0.04, gain: 0.8, f1: 0.97, ring: 0.1 },
-  overdrive: { label: "Overdrive", hint: "shout", oq: 0.45, cl: 0.28, tilt: 0.14, asp: 0.02, gain: 1.0, f1: 1.12, ring: 0.15 },
-  edge: { label: "Edge", hint: "sharp", oq: 0.38, cl: 0.22, tilt: 0.05, asp: 0.02, gain: 1.0, f1: 1.08, ring: 0.45 },
+  neutral: {
+    label: "Neutral",
+    hint: "soft",
+    oq: 0.72,
+    cl: 0.45,
+    tilt: 0.55,
+    asp: 0.1,
+    gain: 0.65,
+    f1: 1.0,
+    ring: 0.0,
+  },
+  curbing: {
+    label: "Curbing",
+    hint: "held",
+    oq: 0.58,
+    cl: 0.38,
+    tilt: 0.32,
+    asp: 0.04,
+    gain: 0.8,
+    f1: 0.97,
+    ring: 0.1,
+  },
+  overdrive: {
+    label: "Overdrive",
+    hint: "shout",
+    oq: 0.45,
+    cl: 0.28,
+    tilt: 0.14,
+    asp: 0.02,
+    gain: 1.0,
+    f1: 1.12,
+    ring: 0.15,
+  },
+  edge: {
+    label: "Edge",
+    hint: "sharp",
+    oq: 0.38,
+    cl: 0.22,
+    tilt: 0.05,
+    asp: 0.02,
+    gain: 1.0,
+    f1: 1.08,
+    ring: 0.45,
+  },
 };
 
 export interface EffectSpec {
