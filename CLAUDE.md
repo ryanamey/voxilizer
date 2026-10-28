@@ -1,6 +1,6 @@
 # Voxilizer — project context
 
-Read this first. It carries the decisions and context that previous sessions made, so any session
+Read this first, then HANDBOOK.md for the full story. It carries the decisions and context that previous sessions made, so any session
 (Claude or a human developer) can continue the work.
 
 ## What we're building

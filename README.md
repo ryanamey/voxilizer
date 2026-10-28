@@ -21,7 +21,7 @@ pnpm build
 - `packages/engine`: the sound engine (pure TypeScript)
 - `reference/grit-lab.html`: the original prototype, open it in a browser to compare sounds
 
-See `CLAUDE.md` for architecture and decisions, and `ROADMAP.md` for what's next.
+Start with `HANDBOOK.md` (everything needed to resume the project), then `CLAUDE.md` and `ROADMAP.md`.
 
 ## Deploying on Vercel
 
