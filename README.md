@@ -17,7 +17,7 @@ personal recordings, on the founder's PC). The handbook (§1) says what each hol
 
 ## Where the code lives
 
-- GitHub: `oqtoboost/voxilizer` (private). The `main` branch is the latest working version.
+- GitHub: [ryanamey/voxilizer](https://github.com/ryanamey/voxilizer). The `main` branch is the latest working version.
 - The founder's working copy: `C:\Users\monau\OneDrive\Desktop\Voxilizer`.
 
 ## Run it
