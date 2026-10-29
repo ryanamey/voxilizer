@@ -8,3 +8,8 @@ coverage
 .DS_Store
 *.tsbuildinfo
 .vercel
+
+# Private reference material (CVT book, audio, app captures, personal recordings). Never commit.
+/sources/
+# Delivery bundles
+*.bundle
