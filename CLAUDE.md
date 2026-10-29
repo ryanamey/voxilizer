@@ -1,6 +1,7 @@
 # Voxilizer — project context
 
-Read this first, then HANDBOOK.md for the full story. It carries the decisions and context that previous sessions made, so any session
+Read this first, then HANDBOOK.md for the full story and `docs/cvt/` for the singing method (CVT)
+that Grit Lab's rules follow. It carries the decisions and context that previous sessions made, so any session
 (Claude or a human developer) can continue the work.
 
 ## What we're building
@@ -8,9 +9,11 @@ Read this first, then HANDBOOK.md for the full story. It carries the decisions a
 A web app for singers to **design their vocal tone before they sing it**, then train toward it healthily.
 
 - The singer writes a vocal line in a **piano roll** (no staff notation), gives each note a **vowel**
-  (A E I O U), and sets the tone: carrier **mode** (Neutral, Curbing, Overdrive, Edge), **effect**
+  (the 11 CVT vowels), and sets the tone: CVT **mode** (Neutral, Curbing, Overdrive, Edge), **density**
+  (fuller, reduced, falsetto), **volume** 1–10, **effect**
   (creak, rattle, growl, grunt) with an amount, **false-fold distortion** 0–100, and vocal-tract
-  settings (larynx height, twang, air, voice type).
+  settings (larynx height, twang, audible air in Neutral, female/male singer). `cvt.ts` checks every
+  note against CVT's rules and offers fixes.
 - The **song tone** applies to every note; selected notes can **override** it.
 - Playback is synthesised, so experimenting costs the singer **zero vocal effort**. This is the
   product's core reason to exist: singers otherwise burn hours of voice trying tones by trial and error.

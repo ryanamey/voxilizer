@@ -4,7 +4,8 @@ This is the single document to read before working on Voxilizer, from any accoun
 or developer. It records **what we're building, why, every decision made so far, and exactly how to
 resume**. `CLAUDE.md` is the short technical summary; this is the full story.
 
-Last updated: 2026-10-28 · Status: MVP steps 1–3 done: website, accounts, dashboard, Grit Lab (see §8).
+Last updated: 2026-10-28 · Status: MVP steps 1–3 done (website, accounts, dashboard, Grit Lab) and
+Grit Lab follows Complete Vocal Technique (CVT), current edition (see §8).
 
 ---
 
@@ -12,7 +13,9 @@ Last updated: 2026-10-28 · Status: MVP steps 1–3 done: website, accounts, das
 
 **If you're a new Claude session (or any AI assistant):**
 
-1. Clone the repo and read, in order: this file → `CLAUDE.md` → `ROADMAP.md`.
+1. Clone the repo and read, in order: this file → `CLAUDE.md` → `ROADMAP.md` → `docs/cvt/`
+   (`updates-since-2012.md` first, then `reading-notes-2012.md`). The CVT notes are the method the
+   Grit Lab rules follow; `packages/engine/src/cvt.ts` is their code.
 2. Set up environment variables: copy `apps/web/.env.example` to `apps/web/.env.local` and fill it in
    with the **development** branch values from Neon (see §7, "Environments").
 3. Install, migrate and verify the baseline before changing anything:
@@ -41,11 +44,28 @@ Last updated: 2026-10-28 · Status: MVP steps 1–3 done: website, accounts, das
 whether a sound is right). The AI assistant writes the code. There is no other team yet, so keep
 tooling minimal and explain decisions in plain language.
 
-**Things the founder has that live outside the repo** (private to the original Claude account;
-they may not be reachable from another account, which is why their content is summarised here):
+**Things that live outside the repo** (private to the original Claude account or the founder's PC;
+their content is summarised in the repo so nothing depends on them):
 
 - Research doc "The Science of Healthy Vocal Distortion" (Claude Docs artifact). Summary in §3.
 - Grit Lab prototype artifact. A full copy is in `reference/grit-lab.html`.
+- Claude Project "Distortion Vocal" (original account): copies of this handbook and the CVT notes.
+  The repo versions in `docs/cvt/` are the source of truth.
+- **The founder's PC:** `C:\Users\monau\OneDrive\Desktop\Voxilizer` is the working copy. Its
+  `sources\` folder is git-ignored on purpose (copyrighted CVT material and personal recordings):
+  - `sources\CVT\Book`: the CVT 2012 book PDF (scanned, no text layer) and the Sound Library mp3s
+    (`CVT F 008` = female example 8, `CVT M 008` = male example 8).
+  - `sources\CVT\App`: a partial text + screenshot capture of the CVT iPhone app.
+  - `sources\me`: the founder's own material (so far: screenshots of the app's "Updates since
+    2012" chapter; later: range, mode recordings, reference songs).
+    A new session can ask the founder to attach files from there, or link the Claude desktop app to
+    that folder. Don't extract audio from the CVT app (it's protected); the book's Sound Library is fine
+    for calibration (`scripts/calibration/feat.py`).
+- Secrets: Neon connection strings and the Neon Auth URL live in `apps/web/.env.local` on the
+  founder's PC (development branch) and in Vercel env vars (production). Never in git.
+
+**If you're a new Claude account:** the founder brings the repo (GitHub, or a git bundle file),
+the `.env.local` values, and links the PC folder if `sources\` is needed. Nothing else is required.
 
 ---
 
@@ -328,8 +348,14 @@ add the production domain as a trusted domain.
 reach `*.neon.tech`. First run on the founder's PC: `pnpm db:migrate`, then sign up at
 `/sign-up`.
 
-**GitHub:** the Claude GitHub app is installed on the `oqtoboost` organisation only, so commits are
-delivered as git bundles and pulled into `C:\Users\monau\OneDrive\Desktop\Voxilizer`.
+**GitHub and delivery:** the code goes to GitHub at the repository named in `README.md` ("Where the
+code lives"). If a session can't push (the Claude GitHub app isn't installed for that repository),
+it delivers a **git bundle** to the founder's PC instead, and the founder pulls it and pushes:
+
+```bash
+git pull <file>.bundle main
+git push origin main
+```
 
 ---
 
