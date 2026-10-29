@@ -22,7 +22,7 @@ export type WorkerRequest =
       kind: "take-process";
       takeId: number;
       tone: Tone;
-      voice: Pick<VoiceSettings, "larynx" | "twang" | "air">;
+      voice: Pick<VoiceSettings, "larynx" | "twang">;
       clean: boolean;
     };
 

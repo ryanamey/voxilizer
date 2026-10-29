@@ -5,13 +5,16 @@ import { PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import {
   analyzeLoad,
+  checkSong,
   EFFECTS,
   EFFECT_IDS,
   MODES,
   MODE_IDS,
   noteName,
+  sungVowel,
   VOWELS,
-  VOWEL_IDS,
+  worstSeverity,
+  type CheckSeverity,
   type Note,
 } from "@voxilizer/engine";
 import {
@@ -31,6 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useGritLabAudio, usePlaybackPosition } from "./audio-context";
 import { LabeledSlider, Segmented } from "./controls";
+import { ChecksList, SEVERITY_STYLE, VolumeSlider, VOWEL_OPTIONS } from "./cvt-ui";
 import { PianoRoll } from "./piano-roll";
 import { useGritLab } from "./store";
 
@@ -61,6 +65,22 @@ export function MelodyStudio() {
   const [rendering, setRendering] = useState(false);
 
   const load = useMemo(() => analyzeLoad(song), [song]);
+  const cvt = useMemo(() => checkSong(song), [song]);
+  const noteFlags = useMemo(() => {
+    const out: Record<string, CheckSeverity> = {};
+    for (const [id, list] of Object.entries(cvt.notes)) {
+      const w = worstSeverity(list);
+      if (w) out[id] = w;
+    }
+    return out;
+  }, [cvt]);
+  const flagged = useMemo(
+    () =>
+      song.notes
+        .filter((n) => noteFlags[n.id] === "avoid" || noteFlags[n.id] === "caution")
+        .sort((a, b) => a.start - b.start),
+    [song.notes, noteFlags],
+  );
   const selected = useMemo(() => {
     const ids = new Set(selection);
     return song.notes.filter((n) => ids.has(n.id)).sort((a, b) => a.start - b.start);
@@ -169,7 +189,12 @@ export function MelodyStudio() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-3">
-          <PianoRoll noteStages={load.noteStages} playStep={playStep} onAudition={audition} />
+          <PianoRoll
+            noteStages={load.noteStages}
+            noteFlags={noteFlags}
+            playStep={playStep}
+            onAudition={audition}
+          />
           <div
             className="relative h-4 overflow-hidden rounded border bg-scope"
             role="img"
@@ -224,6 +249,19 @@ export function MelodyStudio() {
                     Rough passages are broken up by clean singing. Good for stamina.
                   </p>
                 )}
+                <p>
+                  CVT check:{" "}
+                  {cvt.counts.avoid + cvt.counts.caution + cvt.counts.tip === 0 ? (
+                    <span className="text-stage-clean">every note sits in the centre of its mode.</span>
+                  ) : (
+                    <>
+                      <span className={SEVERITY_STYLE.avoid.text}>{cvt.counts.avoid} to avoid</span> ·{" "}
+                      <span className={SEVERITY_STYLE.caution.text}>{cvt.counts.caution} cautions</span> ·{" "}
+                      <span className={SEVERITY_STYLE.tip.text}>{cvt.counts.tip} tips</span>
+                      <span className="text-muted-foreground"> (dashed outlines in the roll)</span>
+                    </>
+                  )}
+                </p>
               </>
             )}
           </div>
@@ -240,9 +278,45 @@ export function MelodyStudio() {
               <Segmented
                 label="Vowel for new notes"
                 value={newVowel}
-                options={VOWEL_IDS.map((v) => ({ value: v, label: v, hint: VOWELS[v].hint }))}
+                options={VOWEL_OPTIONS}
                 onChange={(v) => st.setNewVowel(v)}
               />
+              {flagged.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold tracking-wide uppercase">Notes to look at</span>
+                  <ul className="flex flex-col gap-1">
+                    {flagged.slice(0, 6).map((n) => {
+                      const c = cvt.notes[n.id]!.find((x) => x.severity !== "tip")!;
+                      return (
+                        <li key={n.id}>
+                          <button
+                            type="button"
+                            className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted"
+                            onClick={() => st.setSelection([n.id])}
+                          >
+                            <span
+                              className={cn(
+                                "mt-1.5 size-2 shrink-0 rounded-full",
+                                SEVERITY_STYLE[c.severity].dot,
+                              )}
+                              aria-hidden
+                            />
+                            <span>
+                              <span className="font-mono">{noteName(n.pitch)}</span>{" "}
+                              <span className="text-muted-foreground">{c.title}</span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {flagged.length > 6 && (
+                    <p className="px-2 text-xs text-muted-foreground">
+                      and {flagged.length - 6} more, marked with dashed outlines
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -257,9 +331,10 @@ export function MelodyStudio() {
               <Segmented
                 label="Vowel"
                 value={sameVowel}
-                options={VOWEL_IDS.map((v) => ({ value: v, label: v, hint: VOWELS[v].hint }))}
+                options={VOWEL_OPTIONS}
                 onChange={(v) => st.setSelectedVowel(v)}
               />
+              {selected.length === 1 && first && <SungAs note={first} />}
               <div className="flex items-center gap-2">
                 <Switch
                   id="follow-song"
@@ -280,6 +355,25 @@ export function MelodyStudio() {
                   options={MODE_IDS.map((m) => ({ value: m, label: MODES[m].label }))}
                   onChange={(mode) => st.setSelectedTone({ mode })}
                 />
+                <VolumeSlider
+                  id="note-volume"
+                  mode={shownTone.mode}
+                  value={shownTone.volume}
+                  disabled={following}
+                  onChange={(volume) => st.setSelectedTone({ volume })}
+                />
+                {shownTone.mode === "neutral" && (
+                  <LabeledSlider
+                    id="note-air"
+                    label="Audible air"
+                    value={shownTone.air}
+                    min={0}
+                    max={100}
+                    display={shownTone.air ? `${shownTone.air}%` : "none"}
+                    disabled={following}
+                    onChange={(air) => st.setSelectedTone({ air })}
+                  />
+                )}
                 <Segmented
                   label="Effect"
                   size="sm"
@@ -300,7 +394,7 @@ export function MelodyStudio() {
                 />
                 <LabeledSlider
                   id="note-ff"
-                  label="False-fold distortion"
+                  label="Distortion"
                   value={shownTone.ff}
                   min={0}
                   max={100}
@@ -309,6 +403,15 @@ export function MelodyStudio() {
                   onChange={(ff) => st.setSelectedTone({ ff })}
                 />
               </fieldset>
+              {selected.length === 1 && first && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold tracking-wide uppercase">CVT check</span>
+                  <ChecksList
+                    checks={cvt.notes[first.id] ?? []}
+                    onFix={(fix) => st.applyNoteFix(first.id, fix)}
+                  />
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -339,5 +442,21 @@ export function MelodyStudio() {
         </aside>
       </div>
     </section>
+  );
+}
+
+/** Shows the vowel CVT asks you to sing when it differs from the written one. */
+function SungAs({ note }: { note: Note }) {
+  const song = useGritLab((s) => s.song);
+  const tone = note.tone ?? song.tone;
+  const sung = sungVowel(note.vowel, tone.mode, note.pitch, song.voice.singer);
+  if (sung === note.vowel) return null;
+  return (
+    <p className="text-sm">
+      Sung as <span className="font-semibold">{sung}</span>{" "}
+      <span className="text-muted-foreground">
+        (as in &ldquo;{VOWELS[sung].word}&rdquo;) to stay in {MODES[tone.mode].label}.
+      </span>
+    </p>
   );
 }

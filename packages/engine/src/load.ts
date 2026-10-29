@@ -10,11 +10,11 @@ import { STEPS_PER_BEAT } from "./song";
  */
 export type Stage = 0 | 1 | 2 | 3 | 4;
 
-export function stageOf(tone: Tone, voice: Pick<VoiceSettings, "air">): Stage {
+export function stageOf(tone: Tone): Stage {
   const amount = tone.effect === "none" ? 0 : tone.amount;
   const aryepiglottic = ARYEPIGLOTTIC_EFFECTS.includes(tone.effect) && amount > 0;
   let s: Stage = 0;
-  if (voice.air > 40 || (tone.effect === "creak" && amount > 0)) s = 1;
+  if ((tone.mode === "neutral" && tone.air > 40) || (tone.effect === "creak" && amount > 0)) s = 1;
   if (tone.ff > 0) s = Math.max(s, 2) as Stage;
   if (aryepiglottic) s = Math.max(s, 3) as Stage;
   if (tone.ff > 0 && aryepiglottic) s = 4;
@@ -64,7 +64,7 @@ export function analyzeLoad(song: Song): LoadReport {
   let worst = { len: 0, from: 0, to: 0 };
 
   for (const n of sorted) {
-    const stage = stageOf(effectiveTone(n, song.tone), song.voice);
+    const stage = stageOf(effectiveTone(n, song.tone));
     noteStages[n.id] = stage;
     heaviest = Math.max(heaviest, stage) as Stage;
     const dur = n.length * spb;
@@ -120,7 +120,7 @@ export function toneNotes(
   const notes: string[] = [];
   const amount = tone.effect === "none" ? 0 : tone.amount;
   const aryepiglottic = ARYEPIGLOTTIC_EFFECTS.includes(tone.effect) && amount > 0;
-  const high = fromRecording ? pitchHz > 400 : voice.voice === "low" ? pitchHz > 300 : pitchHz > 520;
+  const high = fromRecording ? pitchHz > 400 : voice.singer === "male" ? pitchHz > 300 : pitchHz > 520;
   if (tone.ff > 0 && aryepiglottic)
     notes.push("Two noise sources at once: learn each alone before stacking them.");
   if (amount > 75 || tone.ff > 75)

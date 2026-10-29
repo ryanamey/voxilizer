@@ -26,7 +26,7 @@ function energyAt(x: Float32Array, freq: number, sr: number, from: number, len: 
   return s1 * s1 + s2 * s2 - c * s1 * s2;
 }
 
-const clean: Tone = { mode: "curbing", effect: "none", amount: 0, ff: 0 };
+const clean: Tone = { mode: "curbing", volume: 6, air: 0, effect: "none", amount: 0, ff: 0 };
 
 describe("song format", () => {
   it("accepts the example song", () => {
@@ -55,7 +55,7 @@ describe("renderMelody", () => {
     expect(renderMelody([], opts)).toBeNull();
   });
 
-  it("renders finite audio normalised to 0.85 peak", () => {
+  it("renders finite audio that never exceeds 0.85 peak", () => {
     const r = renderMelody(song.notes, opts)!;
     expect(r.samples.length).toBeGreaterThan(r.sampleRate * 10);
     let peak = 0;
@@ -65,7 +65,8 @@ describe("renderMelody", () => {
       peak = Math.max(peak, Math.abs(v));
     }
     expect(finite).toBe(true);
-    expect(peak).toBeCloseTo(0.85, 3);
+    expect(peak).toBeLessThanOrEqual(0.8501);
+    expect(peak).toBeGreaterThan(0.3);
   });
 
   it("is deterministic for the same input and seed", () => {
@@ -87,19 +88,19 @@ describe("effects leave their acoustic fingerprint", () => {
   };
 
   it("growl adds a sub-harmonic at half the pitch", () => {
-    const growl: Tone = { mode: "curbing", effect: "growl", amount: 80, ff: 0 };
+    const growl: Tone = { ...clean, effect: "growl", amount: 80 };
     expect(ratio(growl)).toBeGreaterThan(ratio(clean) * 10);
   });
 });
 
 describe("training stages and load", () => {
   it("maps tones to stages", () => {
-    expect(stageOf(clean, DEFAULT_VOICE)).toBe(0);
-    expect(stageOf({ ...clean, effect: "creak", amount: 30 }, DEFAULT_VOICE)).toBe(1);
-    expect(stageOf({ ...clean, ff: 30 }, DEFAULT_VOICE)).toBe(2);
-    expect(stageOf({ ...clean, effect: "growl", amount: 30 }, DEFAULT_VOICE)).toBe(3);
-    expect(stageOf({ ...clean, effect: "growl", amount: 30, ff: 20 }, DEFAULT_VOICE)).toBe(4);
-    expect(stageOf({ ...clean, ff: 90 }, DEFAULT_VOICE)).toBe(4);
+    expect(stageOf(clean)).toBe(0);
+    expect(stageOf({ ...clean, effect: "creak", amount: 30 })).toBe(1);
+    expect(stageOf({ ...clean, ff: 30 })).toBe(2);
+    expect(stageOf({ ...clean, effect: "growl", amount: 30 })).toBe(3);
+    expect(stageOf({ ...clean, effect: "growl", amount: 30, ff: 20 })).toBe(4);
+    expect(stageOf({ ...clean, ff: 90 })).toBe(4);
   });
 
   it("reports the example song's load", () => {
@@ -114,7 +115,7 @@ describe("training stages and load", () => {
 
   it("warns about long rough runs without recovery", () => {
     const song = exampleSong();
-    song.tone = { mode: "edge", effect: "none", amount: 0, ff: 40 };
+    song.tone = { mode: "edge", volume: 8, air: 0, effect: "none", amount: 0, ff: 40 };
     expect(analyzeLoad(song).warnings.some((w) => w.kind === "long-rough-run")).toBe(true);
   });
 });

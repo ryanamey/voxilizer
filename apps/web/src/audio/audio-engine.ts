@@ -110,7 +110,7 @@ export class AudioEngine {
   /** Apply a tone to the loaded take (or return it clean). */
   renderTake(
     tone: Tone,
-    voice: Pick<VoiceSettings, "larynx" | "twang" | "air">,
+    voice: Pick<VoiceSettings, "larynx" | "twang">,
     clean = false,
   ): Promise<RenderedAudio> {
     return this.audio({ kind: "take-process", takeId: this.takeId, tone, voice, clean });

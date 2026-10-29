@@ -1,0 +1,457 @@
+/**
+ * Complete Vocal Technique rules (Sadolin, 2012 edition, with notes from the
+ * current CVT app). Turns a designed tone into advice: is this note singable in
+ * the centre of its mode, and if not, what would make it so?
+ *
+ * These are CVT's pedagogical rules, not physiology facts. They are shown as
+ * guidance; the singer and their teacher decide. Source notes: project doc
+ * `claude/cvt-2012-reading-notes.md`.
+ */
+import { MODES, VOWELS, type ModeId, type SingerId, type VowelId } from "./constants";
+import { MODE_VOLUME, type Note, type Song, type Tone, type VoiceSettings } from "./song";
+import { noteName } from "./util";
+
+// ---------------------------------------------------------------------------
+// Parts of the voice (CVT replaces "registers" with pitch areas)
+// ---------------------------------------------------------------------------
+
+export const VOICE_PARTS = ["very-low", "low", "middle", "high", "very-high"] as const;
+export type VoicePart = (typeof VOICE_PARTS)[number];
+
+export const VOICE_PART_LABEL: Record<VoicePart, string> = {
+  "very-low": "very low part",
+  low: "low part",
+  middle: "middle part",
+  high: "high part",
+  "very-high": "very high part",
+};
+
+/** MIDI note where the low part starts: C3 for women, C2 for men. Each part is one octave. */
+const LOW_PART_START: Record<SingerId, number> = { female: 48, male: 36 };
+
+export function voicePart(pitch: number, singer: SingerId): VoicePart {
+  const i = Math.floor((pitch - LOW_PART_START[singer]) / 12) + 1;
+  return VOICE_PARTS[Math.max(0, Math.min(4, i))]!;
+}
+
+const isHigh = (part: VoicePart) => part === "high" || part === "very-high";
+
+// ---------------------------------------------------------------------------
+// Pitch limits
+// ---------------------------------------------------------------------------
+
+/** Highest note in Overdrive: D5 for women (E♭5 only when well trained), C5 for men. */
+export const OVERDRIVE_TOP: Record<SingerId, { safe: number; max: number }> = {
+  female: { safe: 62, max: 63 },
+  male: { safe: 72, max: 72 },
+};
+
+// ---------------------------------------------------------------------------
+// Vowels
+// ---------------------------------------------------------------------------
+
+export type VowelFit = "easy" | "hard" | "avoid";
+
+/** Which vowels keep each mode in the high part of the voice. In the low part all vowels work. */
+const MODE_VOWELS: Record<ModeId, { easy: readonly VowelId[]; hard: readonly VowelId[] }> = {
+  neutral: { easy: ["EE", "I", "EH", "A", "OE", "UH", "AH", "OR", "OH", "O", "OO"], hard: [] },
+  // 2012 book: I, O, UH. Current app: UH, O, OO (with I still trained).
+  curbing: { easy: ["I", "O", "UH", "OO"], hard: ["EE", "A", "AH", "OE", "OR"] },
+  overdrive: { easy: ["EH", "OH"], hard: [] },
+  edge: { easy: ["I", "EH", "A", "OE"], hard: ["EE", "UH"] },
+};
+
+export function vowelFit(vowel: VowelId, mode: ModeId): VowelFit {
+  const v = MODE_VOWELS[mode];
+  return v.easy.includes(vowel) ? "easy" : v.hard.includes(vowel) ? "hard" : "avoid";
+}
+
+/** CVT's vowel alterations: what to actually sing in the high part to stay in the mode. */
+const ALTER: Record<Exclude<ModeId, "neutral">, Record<VowelId, VowelId>> = {
+  curbing: {
+    EE: "I",
+    I: "I",
+    EH: "I",
+    A: "UH",
+    OE: "I",
+    UH: "UH",
+    AH: "UH",
+    OR: "O",
+    OH: "UH",
+    O: "O",
+    OO: "OO",
+  },
+  overdrive: {
+    EE: "EH",
+    I: "EH",
+    EH: "EH",
+    A: "EH",
+    OE: "EH",
+    UH: "OH",
+    AH: "OH",
+    OR: "OH",
+    OH: "OH",
+    O: "OH",
+    OO: "OH",
+  },
+  edge: {
+    EE: "I",
+    I: "I",
+    EH: "EH",
+    A: "A",
+    OE: "OE",
+    UH: "A",
+    AH: "A",
+    OR: "OE",
+    OH: "OE",
+    O: "OE",
+    OO: "OE",
+  },
+};
+
+/** The vowel to sing for a written vowel in this mode at this pitch. */
+export function sungVowel(vowel: VowelId, mode: ModeId, pitch: number, singer: SingerId): VowelId {
+  if (mode === "neutral" || !isHigh(voicePart(pitch, singer))) return vowel;
+  return ALTER[mode][vowel];
+}
+
+// ---------------------------------------------------------------------------
+// Volume
+// ---------------------------------------------------------------------------
+
+export const VOLUME_LABEL = ["", "pp", "pp", "p", "mp", "mp", "mf", "mf", "f", "ff", "ff"] as const;
+
+/** CVT: Neutral 1–4, Curbing 4–7, Overdrive and Edge 7–10. */
+export const MODE_VOLUME_RANGE: Record<ModeId, readonly [number, number]> = {
+  neutral: [1, 4],
+  curbing: [4, 7],
+  overdrive: [7, 10],
+  edge: [7, 10],
+};
+
+// ---------------------------------------------------------------------------
+// Checks
+// ---------------------------------------------------------------------------
+
+export type CheckSeverity = "avoid" | "caution" | "tip";
+
+export interface CheckFix {
+  label: string;
+  vowel?: VowelId;
+  tone?: Partial<Tone>;
+}
+
+export interface Check {
+  /** Stable id of the rule, for tests and analytics. */
+  rule: string;
+  severity: CheckSeverity;
+  title: string;
+  detail: string;
+  fix?: CheckFix;
+}
+
+const SEVERITY_ORDER: Record<CheckSeverity, number> = { avoid: 0, caution: 1, tip: 2 };
+
+export function worstSeverity(checks: readonly Check[]): CheckSeverity | null {
+  let w: CheckSeverity | null = null;
+  for (const c of checks) if (!w || SEVERITY_ORDER[c.severity] < SEVERITY_ORDER[w]) w = c.severity;
+  return w;
+}
+
+const vowelName = (v: VowelId) => `${v} (as in "${VOWELS[v].word}")`;
+
+/** Check one note (or the tone designer's preview) against CVT's rules. */
+export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice: VoiceSettings): Check[] {
+  const out: Check[] = [];
+  const { mode, volume } = tone;
+  const singer = voice.singer;
+  const part = voicePart(note.pitch, singer);
+  const label = MODES[mode].label;
+  const metallic = mode !== "neutral";
+
+  // Air belongs to Neutral only.
+  if (metallic && tone.air > 0) {
+    out.push({
+      rule: "air-in-metal",
+      severity: "avoid",
+      title: `No air in ${label}`,
+      detail:
+        "CVT: audible air works only in Neutral. Trying to add air to a metallic mode can cause strong constriction.",
+      fix: { label: "Remove the air", tone: { air: 0 } },
+    });
+  }
+
+  // Overdrive's pitch ceiling.
+  if (mode === "overdrive") {
+    const top = OVERDRIVE_TOP[singer];
+    if (note.pitch > top.max) {
+      out.push({
+        rule: "overdrive-too-high",
+        severity: "avoid",
+        title: "Above Overdrive's limit",
+        detail: `Overdrive stops at ${noteName(top.max)} for ${singer === "female" ? "women" : "men"}. For this much power up here, CVT uses Edge.`,
+        fix: { label: "Switch to Edge", tone: { mode: "edge" }, vowel: ALTER.edge[note.vowel] },
+      });
+    } else if (note.pitch > top.safe) {
+      out.push({
+        rule: "overdrive-edge-of-range",
+        severity: "caution",
+        title: "At the very top of Overdrive",
+        detail: `${noteName(note.pitch)} is only reachable in Overdrive when you are well trained in the mode. Consider changing to Edge earlier.`,
+        fix: { label: "Switch to Edge", tone: { mode: "edge" }, vowel: ALTER.edge[note.vowel] },
+      });
+    }
+  }
+
+  // Vowels in the high part.
+  const fit = vowelFit(note.vowel, mode);
+  if (metallic && fit !== "easy") {
+    const sung = ALTER[mode][note.vowel];
+    if (isHigh(part)) {
+      out.push({
+        rule: fit === "avoid" ? "vowel-breaks-mode" : "vowel-hard",
+        severity: fit === "avoid" ? "avoid" : "caution",
+        title:
+          fit === "avoid"
+            ? `${note.vowel} can't hold ${label} up here`
+            : `${note.vowel} is hard in ${label} up here`,
+        detail: `In the ${VOICE_PART_LABEL[part]}, ${label} needs ${MODE_VOWELS[mode].easy.join(", ")}. Sing ${vowelName(sung)} instead; listeners rarely notice.`,
+        fix: sung !== note.vowel ? { label: `Sing ${sung}`, vowel: sung } : undefined,
+      });
+    } else if (part === "middle" && fit === "avoid") {
+      out.push({
+        rule: "vowel-direct",
+        severity: "tip",
+        title: `Lean ${note.vowel} towards ${sung}`,
+        detail: `${label} gets easier as you direct ${note.vowel} towards ${vowelName(sung)}, more so the higher you go.`,
+        fix: { label: `Sing ${sung}`, vowel: sung },
+      });
+    }
+  }
+
+  // Volume.
+  const [lo, hi] = MODE_VOLUME_RANGE[mode];
+  if (mode === "neutral") {
+    if (tone.air > 0 && volume > 4) {
+      out.push({
+        rule: "air-too-loud",
+        severity: "caution",
+        title: "Too loud for audible air",
+        detail:
+          "Neutral with audible air tops out around mp (volume 4). Louder means forcing air through the folds.",
+        fix: { label: "Volume 4", tone: { volume: 4 } },
+      });
+    } else if (volume > hi && !isHigh(part)) {
+      out.push({
+        rule: "neutral-too-loud",
+        severity: part === "middle" && volume >= 7 ? "avoid" : "caution",
+        title: "Too loud for Neutral here",
+        detail: `Neutral only gets loud in the high part of the voice. Loud Neutral in the ${VOICE_PART_LABEL[part]} strains the voice. For this volume, use a metallic mode.`,
+        fix: {
+          label: volume >= 7 ? "Switch to Overdrive" : "Switch to Curbing",
+          tone: volume >= 7 ? { mode: "overdrive", air: 0 } : { mode: "curbing", air: 0 },
+        },
+      });
+    }
+  } else if (mode === "curbing") {
+    if (volume > hi) {
+      out.push({
+        rule: "curbing-too-loud",
+        severity: volume >= 9 ? "avoid" : "caution",
+        title: "Too loud for Curbing",
+        detail:
+          "Curbing stays around medium volume. Pushing it louder while keeping the 'hold' strains the voice; for loud singing use Overdrive or Edge.",
+        fix: {
+          label: isHigh(part) ? "Switch to Edge" : "Switch to Overdrive",
+          tone: { mode: isHigh(part) ? "edge" : "overdrive" },
+        },
+      });
+    } else if (volume < lo) {
+      out.push({
+        rule: "curbing-too-quiet",
+        severity: "caution",
+        title: "Too quiet for Curbing",
+        detail:
+          "Below medium-quiet, Curbing loses its metal and slips into Neutral. Letting go of support in quiet Curbing makes the voice sore.",
+        fix: { label: "Switch to Neutral", tone: { mode: "neutral" } },
+      });
+    }
+  } else {
+    // Overdrive and Edge get quieter only in the low part.
+    const floor = part === "low" || part === "very-low" ? 5 : lo;
+    if (volume < floor) {
+      out.push({
+        rule: "metal-too-quiet",
+        severity: isHigh(part) ? "avoid" : "caution",
+        title: `Too quiet for ${label}`,
+        detail: `${label} is a loud mode, and the higher you sing, the louder it has to be. Singing it quietly works against the mode. For this volume, use Curbing or Neutral.`,
+        fix: { label: `Volume ${floor}`, tone: { volume: floor } },
+      });
+    }
+  }
+
+  // Sound colour inside the metallic modes.
+  if (mode === "edge" && voice.larynx < -20) {
+    out.push({
+      rule: "edge-dark",
+      severity: "caution",
+      title: "Edge with a lowered larynx",
+      detail:
+        "Edge needs a raised larynx and distinct twang. Lowering the larynx loses the twang and can hurt. The lighter a metallic mode, the safer.",
+      fix: undefined,
+    });
+  } else if (metallic && voice.larynx < -50) {
+    out.push({
+      rule: "metal-dark",
+      severity: "caution",
+      title: `Very dark ${label}`,
+      detail:
+        "Darkening a metallic mode raises the risk of breaks and constriction. Only colour it this dark when the mode itself is secure.",
+    });
+  }
+  if (mode === "edge" && voice.twang < 30) {
+    out.push({
+      rule: "edge-twang",
+      severity: "tip",
+      title: "Edge lives on distinct twang",
+      detail: "If Edge ever hurts, it usually isn't twanged enough: more twang, higher larynx, wider smile.",
+    });
+  }
+
+  // Effects.
+  const hasEffect = tone.effect !== "none" && tone.amount > 0;
+  if (tone.ff > 0 && voice.larynx < -20) {
+    out.push({
+      rule: "distortion-dark",
+      severity: "caution",
+      title: "Distortion with a lowered larynx",
+      detail:
+        "CVT finds distortion with lots of twang, a raised larynx and a light colour. A low larynx makes it scratch or hurt.",
+    });
+  }
+  if (tone.effect === "grunt" && hasEffect && isHigh(part)) {
+    out.push({
+      rule: "grunt-high",
+      severity: "tip",
+      title: "Grunt is a low-voice effect",
+      detail:
+        "Grunt is mostly used in the low part. Higher up, support more and raise the larynx; don't let the tongue drop.",
+    });
+  }
+  if ((hasEffect || tone.ff > 0) && mode !== "neutral" && volume >= 9) {
+    out.push({
+      rule: "effect-volume",
+      severity: "tip",
+      title: "Effects cost volume",
+      detail:
+        "Adding an effect usually lowers the volume and needs extra support. Expect this note to come out a little quieter.",
+    });
+  }
+
+  return out;
+}
+
+/** Modes that can change smoothly, and the vowels they share (CVT transition table). */
+const MUTUAL: Record<string, readonly VowelId[]> = {
+  "neutral>curbing": ["I", "UH", "O"],
+  "neutral>overdrive": ["EH", "OH"],
+  "neutral>edge": ["I", "EH", "A", "OE"],
+  "curbing>edge": ["I", "A", "UH"],
+  "overdrive>edge": ["EH"],
+};
+const pairKey = (a: ModeId, b: ModeId) => {
+  const order: ModeId[] = ["neutral", "curbing", "overdrive", "edge"];
+  return order.indexOf(a) < order.indexOf(b) ? `${a}>${b}` : `${b}>${a}`;
+};
+
+export interface SongCheck {
+  notes: Record<string, Check[]>;
+  counts: Record<CheckSeverity, number>;
+}
+
+/** Check every note of a song, including the mode changes between neighbouring notes. */
+export function checkSong(song: Song): SongCheck {
+  const notes: Record<string, Check[]> = {};
+  const counts: Record<CheckSeverity, number> = { avoid: 0, caution: 0, tip: 0 };
+  const sorted = [...song.notes].sort((a, b) => a.start - b.start);
+  let prev: Note | null = null;
+  for (const n of sorted) {
+    const tone = n.tone ?? song.tone;
+    const list = checkNote(n, tone, song.voice);
+
+    if (prev && n.start - (prev.start + prev.length) <= 4) {
+      const pt = prev.tone ?? song.tone;
+      if (pt.mode !== tone.mode) {
+        const key = pairKey(pt.mode, tone.mode);
+        const from = MODES[pt.mode].label,
+          to = MODES[tone.mode].label;
+        const high = isHigh(voicePart(n.pitch, song.voice.singer));
+        if (key === "curbing>overdrive") {
+          const direct =
+            (pt.mode === "curbing" ? prev.vowel : n.vowel) === "O" &&
+            (pt.mode === "curbing" ? n.vowel : prev.vowel) === "OH";
+          if (high && !direct)
+            list.push({
+              rule: "transition-assist",
+              severity: "tip",
+              title: `${from} → ${to} needs a stepping stone`,
+              detail:
+                "To change smoothly between Curbing and Overdrive up high, pass through Edge (Curbing I → Edge I → Edge EH → Overdrive EH), or go from Curbing O to Overdrive OH.",
+            });
+        } else if (pt.mode === "neutral" && pt.air > 0) {
+          list.push({
+            rule: "transition-air",
+            severity: "tip",
+            title: "From airy Neutral into metal",
+            detail: `Remove the air first: go through Neutral without air before ${to}, or the change will be audible.`,
+          });
+        } else if (high) {
+          const shared = MUTUAL[key] ?? [];
+          const v = sungVowel(n.vowel, tone.mode, n.pitch, song.voice.singer);
+          if (!shared.includes(v))
+            list.push({
+              rule: "transition-audible",
+              severity: "tip",
+              title: `${from} → ${to} will be audible`,
+              detail: shared.length
+                ? `For a smooth change up here, use a vowel both modes share: ${shared.join(", ")}. Otherwise treat it as an intentional break.`
+                : "These modes don't share a vowel up here; the change will be heard. Make it an intentional break.",
+            });
+        }
+      }
+    }
+
+    if (list.length) {
+      notes[n.id] = list;
+      for (const c of list) counts[c.severity]++;
+    }
+    prev = n;
+  }
+  return { notes, counts };
+}
+
+/** A reasonable starting volume for a mode (the middle of its range). */
+export function defaultVolume(mode: ModeId): number {
+  return MODE_VOLUME[mode];
+}
+
+/**
+ * Change a tone's mode the CVT way: keep the volume if it suits the new mode,
+ * otherwise move it to the mode's typical volume, and drop air for metallic modes.
+ */
+export function toneWithMode(tone: Tone, mode: ModeId): Tone {
+  const [lo, hi] = MODE_VOLUME_RANGE[mode];
+  return {
+    ...tone,
+    mode,
+    volume: tone.volume >= lo && tone.volume <= hi ? tone.volume : MODE_VOLUME[mode],
+    air: mode === "neutral" ? tone.air : 0,
+  };
+}
+
+/** Apply a tone patch, routing mode changes through `toneWithMode`. */
+export function patchTone(tone: Tone, patch: Partial<Tone>): Tone {
+  const { mode, ...rest } = patch;
+  const base = mode && mode !== tone.mode ? toneWithMode(tone, mode) : tone;
+  return { ...base, ...rest };
+}

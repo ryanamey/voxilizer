@@ -12,7 +12,7 @@
  * Ported from the Grit Lab prototype; behaviour must stay equivalent until a
  * deliberate sound change is made.
  */
-import { MODES, VOICES, VOWELS } from "./constants";
+import { MODES, SINGERS, VOWELS } from "./constants";
 import type { Note, Tone, VoiceSettings } from "./song";
 import { STEPS_PER_BEAT } from "./song";
 import { createRng, midiToHz, resonatorCoefs } from "./util";
@@ -50,12 +50,18 @@ interface Target {
   gu: number;
   d: number;
   ring: number;
+  vol: number;
   F: number[];
   BW: number[];
 }
 
 type Smoothed = Omit<Target, "F" | "BW"> & { amp: number; F: number[]; BW: number[] };
-const SCALAR_KEYS = ["oq", "cl", "tilt", "gain", "asp", "cr", "gr", "ra", "gu", "d", "ring"] as const;
+const SCALAR_KEYS = ["oq", "cl", "tilt", "gain", "asp", "cr", "gr", "ra", "gu", "d", "ring", "vol"] as const;
+
+/** Output level for a CVT volume: 10 = full scale, each step ≈ 2.2 dB quieter. */
+export function volumeGain(volume: number): number {
+  return Math.pow(10, (-(10 - volume) * 2.2) / 20);
+}
 
 function targetFor(note: Note, songTone: Tone, voice: VoiceSettings): Target {
   const q = note.tone ?? songTone;
@@ -63,24 +69,29 @@ function targetFor(note: Note, songTone: Tone, voice: VoiceSettings): Target {
   const a = q.effect === "none" ? 0 : q.amount / 100;
   const gu = q.effect === "grunt" ? a : 0;
   const tw = voice.twang / 100;
-  const vs = VOICES[voice.voice].scale * (1 + 0.11 * (voice.larynx / 100)) * (1 - 0.08 * gu);
+  const vs = SINGERS[voice.singer].scale * (1 + 0.11 * (voice.larynx / 100)) * (1 - 0.08 * gu);
   const base = VOWELS[note.vowel].formants;
   const F = [base[0] * m.f1, base[1], base[2], 3350, 4000].map((f) => f * vs);
   F[2] = F[2]! + (2900 * vs - F[2]!) * tw * 0.5;
   F[3] = F[3]! + (3150 * vs - F[3]!) * tw * 0.5;
+  // Louder singing closes the folds more firmly and brightens the spectrum.
+  const loud = (q.volume - 6) / 4;
+  // CVT: audible air belongs to Neutral only.
+  const air = q.mode === "neutral" ? q.air / 100 : 0;
   return {
     midi: note.pitch,
-    oq: m.oq,
+    oq: Math.min(0.85, Math.max(0.3, m.oq - 0.04 * loud + 0.05 * air)),
     cl: m.cl,
-    tilt: m.tilt,
+    tilt: Math.min(0.9, Math.max(0, m.tilt - 0.08 * loud + 0.1 * air)),
     gain: m.gain,
-    asp: m.asp + (voice.air / 100) * 0.55 + gu * 0.9,
+    asp: m.asp + air * 0.55 + gu * 0.9,
     cr: q.effect === "creak" ? a : 0,
     gr: q.effect === "growl" ? a : 0,
     ra: q.effect === "rattle" ? a : 0,
     gu,
     d: q.ff / 100,
     ring: (m.ring + tw * 0.8) * 0.15,
+    vol: q.volume,
     F,
     BW: [80, 90, 120 - 50 * tw, 150 - 60 * tw, 200],
   };
@@ -113,6 +124,7 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
     gu: new Float32Array(nb),
     d: new Float32Array(nb),
     ring: new Float32Array(nb),
+    vol: new Float32Array(nb),
   };
   const bF = new Float32Array(nb * 5);
   const bBW = new Float32Array(nb * 5);
@@ -171,6 +183,7 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
       }
     } else {
       k.midi[b] = 57;
+      k.vol[b] = 10;
       for (let r = 0; r < 5; r++) {
         bF[b * 5 + r] = 1000 * (r + 1);
         bBW[b * 5 + r] = 100;
@@ -268,7 +281,7 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
   const y = new Float32Array(N);
   const st = new Float64Array(12);
   const co = new Float64Array(15);
-  const vsBase = VOICES[opts.voice.voice].scale * (1 + 0.11 * (opts.voice.larynx / 100));
+  const vsBase = SINGERS[opts.voice.singer].scale * (1 + 0.11 * (opts.voice.larynx / 100));
   const ringC = resonatorCoefs(3000 * vsBase, 260, SR);
   let prev = 0,
     lp = 0,
@@ -336,10 +349,11 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
     gs += (want - gs) * kg;
     y[n] = y[n]! * gs;
   }
+  // Normalise the levelled signal, then apply each note's volume (volume 10 peaks at 0.85).
   let pk = 1e-6;
   for (let n = 0; n < N; n++) pk = Math.max(pk, Math.abs(y[n]!));
   const g = 0.85 / pk;
-  for (let n = 0; n < N; n++) y[n] = y[n]! * g;
+  for (let n = 0; n < N; n++) y[n] = y[n]! * g * volumeGain(k.vol[Math.floor(n / BLOCK)]!);
 
   return { samples: y, sampleRate: SR, secondsPerStep: spb };
 }

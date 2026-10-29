@@ -241,7 +241,7 @@ export function processVoice(
   x: Float32Array,
   an: VoiceAnalysis,
   tone: Tone,
-  voice: Pick<VoiceSettings, "larynx" | "twang" | "air">,
+  voice: Pick<VoiceSettings, "larynx" | "twang">,
   seed = 11,
 ): Float32Array {
   const N = x.length,
@@ -250,7 +250,7 @@ export function processVoice(
     C = an.coefs;
   const a = tone.effect === "none" ? 0 : tone.amount / 100;
   const d = tone.ff / 100,
-    air = voice.air / 100;
+    air = tone.mode === "neutral" ? tone.air / 100 : 0; // CVT: audible air only in Neutral
   const cr = tone.effect === "creak" ? a : 0,
     gr = tone.effect === "growl" ? a : 0;
   const ra = tone.effect === "rattle" ? a : 0,

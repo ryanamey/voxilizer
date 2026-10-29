@@ -8,6 +8,9 @@
       roll, vowels per note, song tone + per-note overrides, live load map, previews, undo/redo.
 - [x] **3. Website, accounts and saved songs.** Landing page, Neon Auth sign-up/sign-in, dashboard
       shell with sections, songs saved to the account (Neon + Drizzle).
+- [x] **3a. CVT rules.** Volume, singer, 11 vowels, per-note CVT checks with fixes, synth calibrated
+      against the CVT Sound Library.
+- [ ] **3c. CVT current edition.** Density, falsetto, highway/byway transitions, updated vowels.
 - [ ] **3b. Go live.** First live run on Neon, Vercel deployment, Sentry.
 - [ ] **4. Voice profile.** Record five vowels once; melody playback uses the singer's own vowel
       colours and timbre.

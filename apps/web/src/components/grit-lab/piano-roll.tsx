@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { PITCH_MAX, PITCH_MIN, noteName, type Note, type Stage } from "@voxilizer/engine";
+import { PITCH_MAX, PITCH_MIN, noteName, type CheckSeverity, type Note, type Stage } from "@voxilizer/engine";
 import { clampMove, newNoteId, STEPS_PER_BAR } from "./notes";
 import { cssVar } from "./scopes";
 import { useGritLab } from "./store";
@@ -25,6 +25,8 @@ type Drag =
 
 interface PianoRollProps {
   noteStages: Record<string, Stage>;
+  /** Worst CVT check per note (notes without problems are absent). */
+  noteFlags?: Record<string, CheckSeverity>;
   /** Current playback position in grid steps, or -1. */
   playStep: number;
   /** Called with a short list of notes to audition (e.g. a note just placed). */
@@ -37,7 +39,7 @@ interface PianoRollProps {
  * Keyboard (when focused): Delete removes, arrows move by a step or semitone.
  * While dragging, edits live in a local draft and are committed as one undo step.
  */
-export function PianoRoll({ noteStages, playStep, onAudition }: PianoRollProps) {
+export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: PianoRollProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<Note[] | null>(null);
@@ -125,12 +127,15 @@ export function PianoRoll({ noteStages, playStep, onAudition }: PianoRollProps) 
       g.globalAlpha = 1;
       g.fillStyle = v(STAGE_VAR[noteStages[n.id] ?? 0]);
       g.fillRect(x, y + ht - 3, wd, 3);
-      if (sel.has(n.id)) {
-        g.strokeStyle = ink;
+      const flag = noteFlags?.[n.id];
+      if (sel.has(n.id) || flag === "avoid" || flag === "caution") {
+        g.strokeStyle = sel.has(n.id) ? ink : v(flag === "avoid" ? "--stage-4" : "--stage-3");
         g.lineWidth = 2;
+        g.setLineDash(sel.has(n.id) ? [] : [3, 2]);
         g.beginPath();
         g.roundRect(x, y, wd, ht, 3);
         g.stroke();
+        g.setLineDash([]);
         g.lineWidth = 1;
       }
       g.fillStyle = accInk;
@@ -153,7 +158,7 @@ export function PianoRoll({ noteStages, playStep, onAudition }: PianoRollProps) 
       g.stroke();
       g.lineWidth = 1;
     }
-  }, [totalSteps, noteStages, playStep, notes, selection]);
+  }, [totalSteps, noteStages, noteFlags, playStep, notes, selection]);
 
   useEffect(() => {
     draw();

@@ -1,6 +1,7 @@
 export * from "./constants";
 export * from "./song";
 export * from "./load";
+export * from "./cvt";
 export * from "./render";
 export * from "./voice";
 export * from "./spectrum";

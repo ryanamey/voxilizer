@@ -11,11 +11,13 @@ import {
   PITCH_MAX,
   PITCH_MIN,
   VOWELS,
-  VOWEL_IDS,
+  checkNote,
   midiToHz,
   noteName,
   stageOf,
+  sungVowel,
   toneNotes,
+  type CheckFix,
   type Note,
   type Tone,
   type VoiceSettings,
@@ -28,48 +30,59 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useGritLabAudio } from "./audio-context";
 import { ControlGroup, LabeledSlider, Segmented } from "./controls";
+import { ChecksList, VOWEL_OPTIONS, VolumeSlider } from "./cvt-ui";
 import { hzToNoteName, recipeText, STAGE_INFO } from "./recipe";
 import { Scopes } from "./scopes";
 import { useGritLab, type Preview } from "./store";
 
+/** Presets in the centre of their CVT mode. Pitches are for a male voice; female voices sing them higher. */
 const PRESETS: { name: string; tone: Tone; voice: Partial<VoiceSettings>; preview: Partial<Preview> }[] = [
   {
-    name: "Clean belt",
-    tone: { mode: "overdrive", effect: "none", amount: 0, ff: 0 },
-    voice: { larynx: 25, twang: 35, air: 0 },
-    preview: { vowel: "A", pitch: 55 },
+    name: "Clean shout",
+    tone: { mode: "overdrive", volume: 8, air: 0, effect: "none", amount: 0, ff: 0 },
+    voice: { larynx: 10, twang: 30 },
+    preview: { vowel: "EH", pitch: 55 },
   },
   {
     name: "Rock grit",
-    tone: { mode: "edge", effect: "none", amount: 0, ff: 40 },
-    voice: { larynx: 30, twang: 50, air: 5 },
-    preview: { vowel: "E", pitch: 57 },
+    tone: { mode: "edge", volume: 8, air: 0, effect: "none", amount: 0, ff: 40 },
+    voice: { larynx: 35, twang: 60 },
+    preview: { vowel: "I", pitch: 60 },
   },
   {
     name: "Soul growl",
-    tone: { mode: "curbing", effect: "growl", amount: 55, ff: 10 },
-    voice: { larynx: 0, twang: 20, air: 5 },
-    preview: { vowel: "O", pitch: 52 },
+    tone: { mode: "curbing", volume: 6, air: 0, effect: "growl", amount: 55, ff: 0 },
+    voice: { larynx: 10, twang: 30 },
+    preview: { vowel: "UH", pitch: 52 },
   },
   {
     name: "Raspy rattle",
-    tone: { mode: "overdrive", effect: "rattle", amount: 50, ff: 20 },
-    voice: { larynx: 10, twang: 25, air: 5 },
-    preview: { vowel: "A", pitch: 50 },
+    tone: { mode: "overdrive", volume: 8, air: 0, effect: "rattle", amount: 50, ff: 15 },
+    voice: { larynx: 15, twang: 30 },
+    preview: { vowel: "OH", pitch: 50 },
   },
   {
     name: "Death grunt",
-    tone: { mode: "neutral", effect: "grunt", amount: 85, ff: 0 },
-    voice: { larynx: -65, twang: 0, air: 20 },
-    preview: { vowel: "U", pitch: 45 },
+    tone: { mode: "neutral", volume: 4, air: 25, effect: "grunt", amount: 85, ff: 0 },
+    voice: { larynx: -50, twang: 0 },
+    preview: { vowel: "OO", pitch: 43 },
   },
   {
     name: "Fry crackle",
-    tone: { mode: "neutral", effect: "creak", amount: 50, ff: 0 },
-    voice: { larynx: 0, twang: 10, air: 15 },
-    preview: { vowel: "A", pitch: 48 },
+    tone: { mode: "neutral", volume: 3, air: 15, effect: "creak", amount: 50, ff: 0 },
+    voice: { larynx: 0, twang: 10 },
+    preview: { vowel: "AH", pitch: 48 },
+  },
+  {
+    name: "Breathy intimate",
+    tone: { mode: "neutral", volume: 2, air: 55, effect: "none", amount: 0, ff: 0 },
+    voice: { larynx: -10, twang: 15 },
+    preview: { vowel: "AH", pitch: 52 },
   },
 ];
+
+/** Women sing CVT's examples roughly a sixth higher than men. */
+const FEMALE_OFFSET = 8;
 
 const CLEAN: Pick<Tone, "effect" | "amount" | "ff"> = { effect: "none", amount: 0, ff: 0 };
 const STAGE_TONE = ["bg-stage-clean", "bg-stage-clean", "bg-stage-2", "bg-stage-3", "bg-stage-4"] as const;
@@ -211,7 +224,17 @@ export function ToneDesigner() {
   }
 
   const f0 = mine ? take?.medianF0 || null : midiToHz(preview.pitch);
-  const stage = stageOf(tone, voice);
+  const stage = stageOf(tone);
+  const sung = sungVowel(preview.vowel, tone.mode, preview.pitch, voice.singer);
+  const checks = useMemo(
+    () => (mine ? [] : checkNote({ pitch: preview.pitch, vowel: preview.vowel }, tone, voice)),
+    [mine, preview.pitch, preview.vowel, tone, voice],
+  );
+  function applyFix(fix: CheckFix) {
+    if (fix.tone) setTone(fix.tone);
+    if (fix.vowel) setPreview({ vowel: fix.vowel });
+    committed();
+  }
   const notes = useMemo(() => toneNotes(tone, voice, f0 ?? 0, mine && !!take), [tone, voice, f0, mine, take]);
   const recipe = recipeText(tone, voice, preview, source, take);
   const caption = `${mine ? "Your voice" : MODES[tone.mode].label}${tone.effect !== "none" ? ` + ${EFFECTS[tone.effect].label}` : ""}${tone.ff ? " + distortion" : ""}`;
@@ -300,9 +323,13 @@ export function ToneDesigner() {
                 size="sm"
                 className="rounded-full"
                 onClick={() => {
+                  const female = useGritLab.getState().song.voice.singer === "female";
                   setTone(p.tone);
                   setVoice(p.voice);
-                  setPreview(p.preview);
+                  setPreview({
+                    ...p.preview,
+                    pitch: Math.min(PITCH_MAX, (p.preview.pitch ?? 52) + (female ? FEMALE_OFFSET : 0)),
+                  });
                   committed();
                 }}
               >
@@ -312,14 +339,14 @@ export function ToneDesigner() {
           </div>
         </ControlGroup>
 
-        <ControlGroup title="Carrier" hint="the clean engine underneath">
+        <ControlGroup title="Mode and volume" hint="the CVT gear you sing in">
           {mine && (
             <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
               Your recording is the carrier: its pitch and vowel come from how you sang it.
             </p>
           )}
           <Segmented
-            label="Mode"
+            label="Vocal mode"
             value={tone.mode}
             options={MODE_IDS.map((m) => ({ value: m, label: MODES[m].label, hint: MODES[m].hint }))}
             onChange={(mode) => {
@@ -327,40 +354,44 @@ export function ToneDesigner() {
               committed();
             }}
           />
-          <LabeledSlider
-            id="preview-pitch"
-            label="Pitch"
-            value={preview.pitch}
-            min={PITCH_MIN}
-            max={PITCH_MAX}
-            display={`${noteName(preview.pitch)} · ${Math.round(midiToHz(preview.pitch))} Hz`}
-            ends={[noteName(PITCH_MIN), noteName(PITCH_MAX)]}
-            disabled={mine}
-            onChange={(pitch) => setPreview({ pitch })}
+          <VolumeSlider
+            id="volume"
+            mode={tone.mode}
+            value={tone.volume}
+            onChange={(volume) => setTone({ volume })}
             onCommit={committed}
           />
-          <Segmented
-            label="Vowel (tongue position)"
-            value={preview.vowel}
-            disabled={mine}
-            options={VOWEL_IDS.map((v) => ({ value: v, label: v, hint: VOWELS[v].hint }))}
-            onChange={(vowel) => {
-              setPreview({ vowel });
-              committed();
-            }}
-          />
+          {tone.mode === "neutral" ? (
+            <LabeledSlider
+              id="air"
+              label="Audible air"
+              value={tone.air}
+              min={0}
+              max={100}
+              display={tone.air ? `${tone.air}%` : "none"}
+              ends={["clear", "breathy"]}
+              onChange={(air) => setTone({ air })}
+              onCommit={committed}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Audible air is Neutral-only in CVT; the metallic modes are always non-breathy.
+            </p>
+          )}
+        </ControlGroup>
+
+        <ControlGroup title="Note" hint="pitch, vowel and who sings">
           <div className="flex flex-wrap gap-6">
             <Segmented
-              label="Voice"
-              value={voice.voice}
-              disabled={mine}
+              label="Singer"
+              value={voice.singer}
               size="sm"
               options={[
-                { value: "low", label: "Lower" },
-                { value: "high", label: "Higher" },
+                { value: "female", label: "Female" },
+                { value: "male", label: "Male" },
               ]}
-              onChange={(v) => {
-                setVoice({ voice: v });
+              onChange={(singer) => {
+                setVoice({ singer });
                 committed();
               }}
             />
@@ -379,6 +410,36 @@ export function ToneDesigner() {
               }}
             />
           </div>
+          <LabeledSlider
+            id="preview-pitch"
+            label="Pitch"
+            value={preview.pitch}
+            min={PITCH_MIN}
+            max={PITCH_MAX}
+            display={`${noteName(preview.pitch)} · ${Math.round(midiToHz(preview.pitch))} Hz`}
+            ends={[noteName(PITCH_MIN), noteName(PITCH_MAX)]}
+            disabled={mine}
+            onChange={(pitch) => setPreview({ pitch })}
+            onCommit={committed}
+          />
+          <Segmented
+            label="Vowel"
+            value={preview.vowel}
+            disabled={mine}
+            options={VOWEL_OPTIONS}
+            onChange={(vowel) => {
+              setPreview({ vowel });
+              committed();
+            }}
+          />
+          {!mine && sung !== preview.vowel && (
+            <p className="text-sm">
+              Sung as <span className="font-semibold">{sung}</span>{" "}
+              <span className="text-muted-foreground">
+                (as in &ldquo;{VOWELS[sung].word}&rdquo;): {MODES[tone.mode].label} needs it up here.
+              </span>
+            </p>
+          )}
         </ControlGroup>
 
         <ControlGroup title="Effect" hint="the added vibration">
@@ -404,7 +465,7 @@ export function ToneDesigner() {
           />
           <LabeledSlider
             id="false-fold"
-            label="False-fold engagement (distortion)"
+            label="Distortion (false folds)"
             value={tone.ff}
             min={0}
             max={100}
@@ -429,22 +490,13 @@ export function ToneDesigner() {
           />
           <LabeledSlider
             id="twang"
-            label="Twang (aryepiglottic narrowing)"
+            label="Twang"
             value={voice.twang}
             min={0}
             max={100}
-            display={`${voice.twang}%`}
+            display={voice.twang ? `+${voice.twang}%` : "necessary"}
+            ends={["necessary twang", "distinct twang"]}
             onChange={(twang) => setVoice({ twang })}
-            onCommit={committed}
-          />
-          <LabeledSlider
-            id="air"
-            label="Air added"
-            value={voice.air}
-            min={0}
-            max={100}
-            display={`${voice.air}%`}
-            onChange={(air) => setVoice({ air })}
             onCommit={committed}
           />
         </ControlGroup>
@@ -486,6 +538,15 @@ export function ToneDesigner() {
             {recipe}
           </pre>
         </div>
+
+        {!mine && (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+              CVT check
+            </h2>
+            <ChecksList checks={checks} onFix={applyFix} />
+          </div>
+        )}
 
         <div
           className={cn("flex flex-col gap-2 rounded-lg p-4", stage >= 4 ? "bg-stage-4/10" : "bg-primary/5")}

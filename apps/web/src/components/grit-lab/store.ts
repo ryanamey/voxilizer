@@ -3,8 +3,11 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import {
+  DEFAULT_TONE,
   DEFAULT_VOICE,
   exampleSong,
+  patchTone,
+  type CheckFix,
   type Note,
   type Song,
   type Tone,
@@ -55,6 +58,8 @@ export interface GritLabState {
   setSelectedVowel: (v: VowelId) => void;
   /** null = follow the song tone; otherwise override (merged with the current tone). */
   setSelectedTone: (patch: Partial<Tone> | null) => void;
+  /** Apply a CVT check's suggested fix to one note (creates a per-note override if needed). */
+  applyNoteFix: (noteId: string, fix: CheckFix) => void;
 
   loadSong: (song: Song, id: string | null) => void;
   newSong: () => void;
@@ -63,11 +68,11 @@ export interface GritLabState {
 
 export function blankSong(): Song {
   return {
-    version: 1,
+    version: 2,
     title: "Untitled song",
     tempo: 92,
     bars: 4,
-    tone: { mode: "curbing", effect: "none", amount: 40, ff: 0 },
+    tone: { ...DEFAULT_TONE },
     voice: { ...DEFAULT_VOICE },
     notes: [],
   };
@@ -86,12 +91,12 @@ export const useGritLab = create<GritLabState>()(
         songId: null,
         savedJson: "",
         selection: [],
-        preview: { pitch: 52, vowel: "A", pattern: "sustain" },
+        preview: { pitch: 52, vowel: "AH", pattern: "sustain" },
         source: "synth",
-        newVowel: "A",
+        newVowel: "AH",
         newLength: 2,
 
-        setTone: (patch) => mapSong((s) => ({ ...s, tone: { ...s.tone, ...patch } })),
+        setTone: (patch) => mapSong((s) => ({ ...s, tone: patchTone(s.tone, patch) })),
         setVoice: (patch) => mapSong((s) => ({ ...s, voice: { ...s.voice, ...patch } })),
         setTitle: (title) => mapSong((s) => ({ ...s, title })),
         setTempo: (tempo) => mapSong((s) => ({ ...s, tempo })),
@@ -130,10 +135,23 @@ export const useGritLab = create<GritLabState>()(
           mapSong((s) => ({
             ...s,
             notes: s.notes.map((n) =>
-              sel.has(n.id) ? { ...n, tone: patch === null ? null : { ...(n.tone ?? s.tone), ...patch } } : n,
+              sel.has(n.id) ? { ...n, tone: patch === null ? null : patchTone(n.tone ?? s.tone, patch) } : n,
             ),
           }));
         },
+        applyNoteFix: (noteId, fix) =>
+          mapSong((s) => ({
+            ...s,
+            notes: s.notes.map((n) =>
+              n.id !== noteId
+                ? n
+                : {
+                    ...n,
+                    vowel: fix.vowel ?? n.vowel,
+                    tone: fix.tone ? patchTone(n.tone ?? s.tone, fix.tone) : n.tone,
+                  },
+            ),
+          })),
 
         loadSong: (song, id) => {
           set({ song, songId: id, savedJson: id ? JSON.stringify(song) : "", selection: [] });

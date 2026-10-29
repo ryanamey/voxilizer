@@ -39,7 +39,7 @@ describe("clampMove", () => {
   it("keeps a group inside the grid", () => {
     expect(clampMove([n("a", 60, 2, 4)], -5, 0, 64)).toEqual({ dStep: -2, dPitch: 0 });
     expect(clampMove([n("a", 60, 58, 4)], 5, 0, 64)).toEqual({ dStep: 2, dPitch: 0 });
-    expect(clampMove([n("a", 73, 0, 4)], 0, 3, 64)).toEqual({ dStep: 0, dPitch: 1 });
+    expect(clampMove([n("a", 83, 0, 4)], 0, 3, 64)).toEqual({ dStep: 0, dPitch: 1 });
   });
 });
 

@@ -3,8 +3,10 @@ import {
   MODES,
   midiToHz,
   noteName,
-  VOICES,
+  SINGERS,
+  VOLUME_LABEL,
   VOWELS,
+  sungVowel,
   type Tone,
   type VoiceSettings,
 } from "@voxilizer/engine";
@@ -13,6 +15,12 @@ import type { TakeInfo } from "@/audio/audio-engine";
 
 export function hzToNoteName(hz: number): string {
   return noteName(Math.round(69 + 12 * Math.log2(hz / 440)));
+}
+
+function vowelText(vowel: Preview["vowel"], tone: Tone, pitch: number, voice: VoiceSettings): string {
+  const sung = sungVowel(vowel, tone.mode, pitch, voice.singer);
+  const name = (v: Preview["vowel"]) => `${v} (as in "${VOWELS[v].word}")`;
+  return sung === vowel ? name(vowel) : `${name(vowel)}, sung as ${name(sung)}`;
 }
 
 /** A copyable, plain-text description of the designed tone. */
@@ -28,9 +36,9 @@ export function recipeText(
       ? take?.medianF0
         ? `Carrier: your recording, ${hzToNoteName(take.medianF0)} (${Math.round(take.medianF0)} Hz)`
         : "Carrier: your recording (no take yet)"
-      : `Carrier: ${MODES[tone.mode].label} on ${preview.vowel} (${VOWELS[preview.vowel].hint}), ${noteName(preview.pitch)} (${Math.round(
+      : `Mode: ${MODES[tone.mode].label}${tone.mode === "neutral" && tone.air ? ` with audible air ${tone.air}%` : ""}, volume ${tone.volume} (${VOLUME_LABEL[tone.volume]})\nNote: ${noteName(preview.pitch)} (${Math.round(
           midiToHz(preview.pitch),
-        )} Hz), ${VOICES[voice.voice].label.toLowerCase()} voice`;
+        )} Hz), ${SINGERS[voice.singer].label.toLowerCase()} voice, vowel ${vowelText(preview.vowel, tone, preview.pitch, voice)}`;
   const effect =
     tone.effect === "none" ? "Effect: none" : `Effect: ${EFFECTS[tone.effect].label} ${tone.amount}%`;
   const larynx =
@@ -38,8 +46,8 @@ export function recipeText(
   return [
     carrier,
     effect,
-    `False-fold distortion: ${tone.ff ? `${tone.ff}%` : "off"}`,
-    `Larynx: ${larynx} · Twang: ${voice.twang}% · Air: ${voice.air}%`,
+    `Distortion: ${tone.ff ? `${tone.ff}%` : "off"}`,
+    `Larynx: ${larynx} · Twang above necessary: ${voice.twang}%`,
   ].join("\n");
 }
 
