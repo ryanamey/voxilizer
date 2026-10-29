@@ -174,6 +174,7 @@ voice, soft high note, pain); two weeks of hoarseness or any pain → referral s
 | 2026-10-28 | Song format v2: per-tone CVT volume 1–10, Neutral-only air, female/male singer, 11 CVT vowels | CVT's rules depend on volume, sex-specific pitch limits and exact vowels                              |
 | 2026-10-28 | CVT rules engine (`packages/engine/src/cvt.ts`) checks every note, with one-click fixes       | 95% of problems are mode misuse (CVT); designs should be singable in the centre of the mode           |
 | 2026-10-28 | Synth modes calibrated against the CVT Sound Library (H1–H2, spectral tilt, 3 kHz ring)       | The synth should sound like the modes it names                                                        |
+| 2026-10-28 | Follow the current CVT edition over the 2012 book: density, falsetto, Highway/Byway           | The founder supplied the app's "Updates since 2012" chapter; the app is the living source             |
 
 **Names considered and rejected:** VoxDesign (voxdesign.com taken; "Vox" overlaps the VOX amp brand),
 VocalDesign (Roland sells "Vocal Designer"), VoxShape, VoxSketch, VoxPalette, Raspwell, Supravox,
@@ -312,7 +313,14 @@ add the production domain as a trusted domain.
   neighbouring notes (shared vowels, assisting mode). Grit Lab shows the checks with fixes, outlines
   problem notes in the piano roll, and lists them. Presets rewritten to sit in the centre of their modes.
   Mode constants calibrated against CVT M 055/056/072/077/097/102/120/127.
-- Tests: 26 engine tests, 9 web unit tests, 3 Playwright tests (+1 full auth flow behind `E2E_AUTH=1`).
+- **CVT current edition (2026-10-28):** optional `density` on each tone (fuller / reduced / falsetto;
+  Curbing is always reduced, falsetto is Neutral only; old songs default to the mode's usual density,
+  so no format bump). Checks: Overdrive top for women D5 (was E♭5), Curbing vowels UH/O/OO (I is a
+  tip), no Curbing for women above C6, density-aware volume ranges (reduced metal 4–7; Neutral up to 7
+  in the middle part with twang), Highway/Byway transition tips, vocal-break tips for falsetto; the
+  assisting-mode rule is gone. Synth: reduced density opens the folds a little and halves the ring;
+  falsetto is breathy-thin with no ring. UI: density picker in the tone designer and note inspector.
+- Tests: 34 engine tests, 9 web unit tests, 3 Playwright tests (+1 full auth flow behind `E2E_AUTH=1`).
 - Verified in headless Chromium: pages render in light and dark, the dashboard redirects to sign-in,
   form validation works, the piano roll adds / deletes / undoes notes, playback runs.
 
@@ -327,9 +335,10 @@ delivered as git bundles and pulled into `C:\Users\monau\OneDrive\Desktop\Voxili
 
 ## 9. Next steps
 
-0. **CVT, current edition:** read the app chapters the founder is capturing (density fuller/reduced,
-   falsetto, highway/byway transitions, updated Curbing vowels) and update `cvt.ts`, the song format
-   and the synth. Then the founder's own voice: range, mode recordings, goals (`sources\me`).
+0. **CVT, rest of the app:** density is in. Still to read: the app's Vocal Modes, Transitions, Effects
+   and Sound Colour chapters (5 colour grades Lightest–Darkest, the 10 main effects and full
+   distortion, onset, support balance). Then the founder's own voice: range, mode recordings, goals
+   (`sources\me`), and calibrate falsetto and reduced density against recordings.
 1. First live run: migrate, sign up, save a song; fix anything Neon-specific.
 2. Deploy to Vercel (production branch values, trusted domain, migrations).
 3. Sentry (errors) once a DSN exists.

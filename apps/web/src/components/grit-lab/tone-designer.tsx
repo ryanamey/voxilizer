@@ -30,7 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useGritLabAudio } from "./audio-context";
 import { ControlGroup, LabeledSlider, Segmented } from "./controls";
-import { ChecksList, VOWEL_OPTIONS, VolumeSlider } from "./cvt-ui";
+import { ChecksList, DensityPicker, VOWEL_OPTIONS, VolumeSlider } from "./cvt-ui";
 import { hzToNoteName, recipeText, STAGE_INFO } from "./recipe";
 import { Scopes } from "./scopes";
 import { useGritLab, type Preview } from "./store";
@@ -39,43 +39,43 @@ import { useGritLab, type Preview } from "./store";
 const PRESETS: { name: string; tone: Tone; voice: Partial<VoiceSettings>; preview: Partial<Preview> }[] = [
   {
     name: "Clean shout",
-    tone: { mode: "overdrive", volume: 8, air: 0, effect: "none", amount: 0, ff: 0 },
+    tone: { mode: "overdrive", density: "fuller", volume: 8, air: 0, effect: "none", amount: 0, ff: 0 },
     voice: { larynx: 10, twang: 30 },
     preview: { vowel: "EH", pitch: 55 },
   },
   {
     name: "Rock grit",
-    tone: { mode: "edge", volume: 8, air: 0, effect: "none", amount: 0, ff: 40 },
+    tone: { mode: "edge", density: "fuller", volume: 8, air: 0, effect: "none", amount: 0, ff: 40 },
     voice: { larynx: 35, twang: 60 },
     preview: { vowel: "I", pitch: 60 },
   },
   {
     name: "Soul growl",
-    tone: { mode: "curbing", volume: 6, air: 0, effect: "growl", amount: 55, ff: 0 },
+    tone: { mode: "curbing", density: "reduced", volume: 6, air: 0, effect: "growl", amount: 55, ff: 0 },
     voice: { larynx: 10, twang: 30 },
     preview: { vowel: "UH", pitch: 52 },
   },
   {
     name: "Raspy rattle",
-    tone: { mode: "overdrive", volume: 8, air: 0, effect: "rattle", amount: 50, ff: 15 },
+    tone: { mode: "overdrive", density: "fuller", volume: 8, air: 0, effect: "rattle", amount: 50, ff: 15 },
     voice: { larynx: 15, twang: 30 },
     preview: { vowel: "OH", pitch: 50 },
   },
   {
     name: "Death grunt",
-    tone: { mode: "neutral", volume: 4, air: 25, effect: "grunt", amount: 85, ff: 0 },
+    tone: { mode: "neutral", density: "fuller", volume: 4, air: 25, effect: "grunt", amount: 85, ff: 0 },
     voice: { larynx: -50, twang: 0 },
     preview: { vowel: "OO", pitch: 43 },
   },
   {
     name: "Fry crackle",
-    tone: { mode: "neutral", volume: 3, air: 15, effect: "creak", amount: 50, ff: 0 },
+    tone: { mode: "neutral", density: "fuller", volume: 3, air: 15, effect: "creak", amount: 50, ff: 0 },
     voice: { larynx: 0, twang: 10 },
     preview: { vowel: "AH", pitch: 48 },
   },
   {
     name: "Breathy intimate",
-    tone: { mode: "neutral", volume: 2, air: 55, effect: "none", amount: 0, ff: 0 },
+    tone: { mode: "neutral", density: "reduced", volume: 2, air: 55, effect: "none", amount: 0, ff: 0 },
     voice: { larynx: -10, twang: 15 },
     preview: { vowel: "AH", pitch: 52 },
   },
@@ -354,9 +354,16 @@ export function ToneDesigner() {
               committed();
             }}
           />
+          <DensityPicker
+            tone={tone}
+            onChange={(density) => {
+              setTone({ density });
+              committed();
+            }}
+          />
           <VolumeSlider
             id="volume"
-            mode={tone.mode}
+            tone={tone}
             value={tone.volume}
             onChange={(volume) => setTone({ volume })}
             onCommit={committed}

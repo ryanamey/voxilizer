@@ -2,8 +2,11 @@
 
 import { WrenchIcon } from "lucide-react";
 import {
-  MODE_VOLUME_RANGE,
-  MODES,
+  DENSITIES,
+  densityOf,
+  MODE_DENSITIES,
+  volumeRange,
+  volumeRangeText,
   VOLUME_LABEL,
   VOLUME_MAX,
   VOLUME_MIN,
@@ -12,11 +15,12 @@ import {
   type Check,
   type CheckFix,
   type CheckSeverity,
-  type ModeId,
+  type DensityId,
+  type Tone,
 } from "@voxilizer/engine";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LabeledSlider } from "./controls";
+import { LabeledSlider, Segmented } from "./controls";
 
 export const VOWEL_OPTIONS = VOWEL_IDS.map((v) => ({ value: v, label: v, hint: VOWELS[v].word }));
 
@@ -26,23 +30,55 @@ export const SEVERITY_STYLE: Record<CheckSeverity, { label: string; dot: string;
   tip: { label: "Tip", dot: "bg-primary", text: "text-primary" },
 };
 
-/** Volume on CVT's 1–10 scale, with the mode's healthy range shown. */
+/** CVT density for the tone: the options its mode allows. Curbing is always reduced. */
+export function DensityPicker({
+  tone,
+  size,
+  disabled,
+  onChange,
+}: {
+  tone: Pick<Tone, "mode" | "density">;
+  size?: "sm" | "default";
+  disabled?: boolean;
+  onChange: (density: DensityId) => void;
+}) {
+  const allowed = MODE_DENSITIES[tone.mode];
+  if (allowed.length === 1)
+    return (
+      <p className="text-xs text-muted-foreground">
+        Density: Curbing is always sung in reduced density (held-in, medium volume).
+      </p>
+    );
+  return (
+    <Segmented
+      label="Density"
+      size={size}
+      value={densityOf(tone)}
+      disabled={disabled}
+      options={allowed.map((d) => ({ value: d, label: DENSITIES[d].label, hint: DENSITIES[d].hint }))}
+      onChange={onChange}
+    />
+  );
+}
+
+/** Volume on CVT's 1–10 scale, with the healthy range for the mode and density shown. */
 export function VolumeSlider({
   id,
-  mode,
+  tone,
   value,
   disabled,
   onChange,
   onCommit,
 }: {
   id: string;
-  mode: ModeId;
+  tone: Pick<Tone, "mode" | "density">;
   value: number;
   disabled?: boolean;
   onChange: (v: number) => void;
   onCommit?: () => void;
 }) {
-  const [lo, hi] = MODE_VOLUME_RANGE[mode];
+  const density = densityOf(tone);
+  const [lo, hi] = volumeRange(tone.mode, density, tone.mode === "neutral" ? "high" : undefined);
   const inRange = value >= lo && value <= hi;
   return (
     <div className="flex flex-col gap-1">
@@ -59,8 +95,7 @@ export function VolumeSlider({
         onCommit={onCommit}
       />
       <p className={cn("text-xs", inRange ? "text-muted-foreground" : "text-stage-3")}>
-        {MODES[mode].label} sits at volume {lo}–{hi}
-        {mode === "neutral" ? " (louder only in the high part of the voice)" : ""}.
+        {volumeRangeText(tone.mode, density)}
       </p>
     </div>
   );

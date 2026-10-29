@@ -18,6 +18,28 @@ export type VowelId = (typeof VOWEL_IDS)[number];
 export const SINGER_IDS = ["female", "male"] as const;
 export type SingerId = (typeof SINGER_IDS)[number];
 
+/**
+ * CVT density (current edition, advanced level). Fuller = clear and open; reduced =
+ * contained, "held-in" (same metal, smaller volume); falsetto = Neutral's thin, hollow,
+ * "disengaged" variant. Curbing is always reduced density.
+ */
+export const DENSITY_IDS = ["fuller", "reduced", "falsetto"] as const;
+export type DensityId = (typeof DENSITY_IDS)[number];
+
+export const DENSITIES: Record<DensityId, { label: string; hint: string }> = {
+  fuller: { label: "Fuller", hint: "clear, open" },
+  reduced: { label: "Reduced", hint: "held-in" },
+  falsetto: { label: "Falsetto", hint: "thin, hollow" },
+};
+
+/** Which densities each mode can be sung in. The first one is the default. */
+export const MODE_DENSITIES: Record<ModeId, readonly DensityId[]> = {
+  neutral: ["fuller", "reduced", "falsetto"],
+  curbing: ["reduced"],
+  overdrive: ["fuller", "reduced"],
+  edge: ["fuller", "reduced"],
+};
+
 /** Volume on CVT's 1–10 scale (1 = quietest you can sing, 10 = loudest). */
 export const VOLUME_MIN = 1;
 export const VOLUME_MAX = 10;

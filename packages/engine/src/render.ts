@@ -14,7 +14,7 @@
  */
 import { MODES, SINGERS, VOWELS } from "./constants";
 import type { Note, Tone, VoiceSettings } from "./song";
-import { STEPS_PER_BEAT } from "./song";
+import { densityOf, STEPS_PER_BEAT } from "./song";
 import { createRng, midiToHz, resonatorCoefs } from "./util";
 
 export const DEFAULT_SAMPLE_RATE = 44100;
@@ -71,26 +71,38 @@ function targetFor(note: Note, songTone: Tone, voice: VoiceSettings): Target {
   const tw = voice.twang / 100;
   const vs = SINGERS[voice.singer].scale * (1 + 0.11 * (voice.larynx / 100)) * (1 - 0.08 * gu);
   const base = VOWELS[note.vowel].formants;
-  const F = [base[0] * m.f1, base[1], base[2], 3350, 4000].map((f) => f * vs);
+  // CVT density: reduced metal is "held-in" (less vocal-tract opening, less metal);
+  // falsetto is the disengaged, thin and hollow way of singing. Curbing is always reduced.
+  const density = densityOf(q);
+  const reduced = density === "reduced" && q.mode !== "curbing";
+  const falsetto = density === "falsetto";
+  const f1 = reduced ? 1 + (m.f1 - 1) * 0.5 : m.f1;
+  const F = [base[0] * f1, base[1], base[2], 3350, 4000].map((f) => f * vs);
   F[2] = F[2]! + (2900 * vs - F[2]!) * tw * 0.5;
   F[3] = F[3]! + (3150 * vs - F[3]!) * tw * 0.5;
   // Louder singing closes the folds more firmly and brightens the spectrum.
   const loud = (q.volume - 6) / 4;
   // CVT: audible air belongs to Neutral only.
   const air = q.mode === "neutral" ? q.air / 100 : 0;
+  let oq = m.oq - 0.04 * loud + 0.05 * air + (reduced ? 0.06 : 0);
+  let tilt = m.tilt - 0.08 * loud + 0.1 * air;
+  if (falsetto) {
+    oq = Math.max(oq, 0.82);
+    tilt += 0.25;
+  }
   return {
     midi: note.pitch,
-    oq: Math.min(0.85, Math.max(0.3, m.oq - 0.04 * loud + 0.05 * air)),
-    cl: m.cl,
-    tilt: Math.min(0.9, Math.max(0, m.tilt - 0.08 * loud + 0.1 * air)),
-    gain: m.gain,
-    asp: m.asp + air * 0.55 + gu * 0.9,
+    oq: Math.min(falsetto ? 0.9 : 0.85, Math.max(0.3, oq)),
+    cl: falsetto ? 0.55 : m.cl,
+    tilt: Math.min(0.95, Math.max(0, tilt)),
+    gain: m.gain * (falsetto ? 0.6 : reduced ? 0.8 : 1),
+    asp: m.asp + air * 0.55 + gu * 0.9 + (falsetto ? 0.04 : 0),
     cr: q.effect === "creak" ? a : 0,
     gr: q.effect === "growl" ? a : 0,
     ra: q.effect === "rattle" ? a : 0,
     gu,
     d: q.ff / 100,
-    ring: (m.ring + tw * 0.8) * 0.15,
+    ring: falsetto ? 0 : (m.ring * (reduced ? 0.5 : 1) + tw * 0.8) * 0.15,
     vol: q.volume,
     F,
     BW: [80, 90, 120 - 50 * tw, 150 - 60 * tw, 200],

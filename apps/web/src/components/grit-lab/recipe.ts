@@ -1,5 +1,7 @@
 import {
   EFFECTS,
+  DENSITIES,
+  densityOf,
   MODES,
   midiToHz,
   noteName,
@@ -36,7 +38,7 @@ export function recipeText(
       ? take?.medianF0
         ? `Carrier: your recording, ${hzToNoteName(take.medianF0)} (${Math.round(take.medianF0)} Hz)`
         : "Carrier: your recording (no take yet)"
-      : `Mode: ${MODES[tone.mode].label}${tone.mode === "neutral" && tone.air ? ` with audible air ${tone.air}%` : ""}, volume ${tone.volume} (${VOLUME_LABEL[tone.volume]})\nNote: ${noteName(preview.pitch)} (${Math.round(
+      : `Mode: ${MODES[tone.mode].label}, ${DENSITIES[densityOf(tone)].label.toLowerCase()} density${tone.mode === "neutral" && tone.air ? ` with audible air ${tone.air}%` : ""}, volume ${tone.volume} (${VOLUME_LABEL[tone.volume]})\nNote: ${noteName(preview.pitch)} (${Math.round(
           midiToHz(preview.pitch),
         )} Hz), ${SINGERS[voice.singer].label.toLowerCase()} voice, vowel ${vowelText(preview.vowel, tone, preview.pitch, voice)}`;
   const effect =

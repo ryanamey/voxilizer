@@ -34,7 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useGritLabAudio, usePlaybackPosition } from "./audio-context";
 import { LabeledSlider, Segmented } from "./controls";
-import { ChecksList, SEVERITY_STYLE, VolumeSlider, VOWEL_OPTIONS } from "./cvt-ui";
+import { ChecksList, DensityPicker, SEVERITY_STYLE, VolumeSlider, VOWEL_OPTIONS } from "./cvt-ui";
 import { PianoRoll } from "./piano-roll";
 import { useGritLab } from "./store";
 
@@ -355,9 +355,15 @@ export function MelodyStudio() {
                   options={MODE_IDS.map((m) => ({ value: m, label: MODES[m].label }))}
                   onChange={(mode) => st.setSelectedTone({ mode })}
                 />
+                <DensityPicker
+                  tone={shownTone}
+                  size="sm"
+                  disabled={following}
+                  onChange={(density) => st.setSelectedTone({ density })}
+                />
                 <VolumeSlider
                   id="note-volume"
-                  mode={shownTone.mode}
+                  tone={shownTone}
                   value={shownTone.volume}
                   disabled={following}
                   onChange={(volume) => st.setSelectedTone({ volume })}

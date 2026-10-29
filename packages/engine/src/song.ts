@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { EFFECT_IDS, MODE_IDS, SINGER_IDS, VOLUME_MAX, VOLUME_MIN, VOWEL_IDS } from "./constants";
+import {
+  DENSITY_IDS,
+  EFFECT_IDS,
+  MODE_DENSITIES,
+  MODE_IDS,
+  SINGER_IDS,
+  VOLUME_MAX,
+  VOLUME_MIN,
+  VOWEL_IDS,
+  type DensityId,
+  type ModeId,
+} from "./constants";
 
 /** Lowest and highest MIDI pitch the editor allows (C2–C6). */
 export const PITCH_MIN = 36;
@@ -10,6 +21,8 @@ export const STEPS_PER_BEAT = 4;
 /** What the singer does on a note: mode, volume, air and the added roughness. */
 export const ToneSchema = z.object({
   mode: z.enum(MODE_IDS),
+  /** CVT density. Songs saved before density existed default to the mode's usual density. */
+  density: z.enum(DENSITY_IDS).optional(),
   /** CVT volume, 1 (quietest) to 10 (loudest). Each mode has its own healthy range. */
   volume: z.number().int().min(VOLUME_MIN).max(VOLUME_MAX),
   /** Audible air, 0–100. CVT: only in Neutral; ignored in the metallic modes. */
@@ -97,6 +110,19 @@ const V1_VOWEL = { A: "AH", E: "EH", I: "EE", O: "OH", U: "OO" } as const;
 /** A typical volume for each mode, used when a song has none yet. */
 export const MODE_VOLUME = { neutral: 3, curbing: 6, overdrive: 8, edge: 8 } as const;
 
+/** The density a tone is sung in: its own if the mode allows it, otherwise the mode's usual one. */
+export function densityOf(tone: Pick<Tone, "mode" | "density">): DensityId {
+  const allowed = MODE_DENSITIES[tone.mode];
+  return tone.density && allowed.includes(tone.density) ? tone.density : allowed[0]!;
+}
+
+/** A typical volume for a mode in a density (reduced-density metal sits at medium volume). */
+export function typicalVolume(mode: ModeId, density: DensityId): number {
+  if (density === "reduced" && (mode === "overdrive" || mode === "edge")) return 6;
+  if (density === "falsetto") return 3;
+  return MODE_VOLUME[mode];
+}
+
 function migrateV1(s: z.infer<typeof SongV1>): Song {
   const air = s.voice.air;
   const tone = (t: z.infer<typeof ToneV1>): Tone => ({
@@ -131,7 +157,15 @@ export function parseSong(input: unknown): Song {
   return SongSchema.parse(input);
 }
 
-export const DEFAULT_TONE: Tone = { mode: "curbing", volume: 6, air: 0, effect: "none", amount: 40, ff: 0 };
+export const DEFAULT_TONE: Tone = {
+  mode: "curbing",
+  density: "reduced",
+  volume: 6,
+  air: 0,
+  effect: "none",
+  amount: 40,
+  ff: 0,
+};
 export const DEFAULT_VOICE: VoiceSettings = { singer: "male", larynx: 0, twang: 20 };
 
 /** The example rock phrase from the Grit Lab prototype, with CVT-correct vowels for a male voice. */
@@ -144,6 +178,7 @@ export function exampleSong(): Song {
     ff: number,
   ): Tone => ({
     mode,
+    density: mode === "curbing" ? "reduced" : "fuller",
     volume,
     air: 0,
     effect,
@@ -152,10 +187,10 @@ export function exampleSong(): Song {
   });
   const raw: Array<[number, number, number, Note["vowel"], Tone | null]> = [
     [57, 0, 4, "AH", null],
-    [60, 4, 2, "I", null],
+    [60, 4, 2, "OO", null],
     [62, 6, 2, "UH", null],
     [64, 8, 6, "O", null],
-    [62, 16, 2, "I", null],
+    [62, 16, 2, "OO", null],
     [60, 18, 2, "UH", null],
     [57, 20, 8, "UH", t("curbing", 6, "growl", 50, 0)],
     [57, 32, 2, "I", null],
@@ -163,7 +198,7 @@ export function exampleSong(): Song {
     [64, 36, 4, "UH", null],
     [67, 40, 8, "I", t("edge", 8, "none", 0, 45)],
     [64, 48, 4, "UH", null],
-    [62, 52, 2, "I", null],
+    [62, 52, 2, "OO", null],
     [60, 54, 2, "UH", null],
     [57, 56, 8, "OH", t("overdrive", 8, "growl", 45, 35)],
   ];

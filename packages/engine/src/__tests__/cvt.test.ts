@@ -6,6 +6,8 @@ import {
   exampleSong,
   magnitudeSpectrum,
   parseSong,
+  patchTone,
+  toneWithMode,
   renderTone,
   sungVowel,
   voicePart,
@@ -126,6 +128,91 @@ describe("CVT checks", () => {
   it("checks a whole song and its mode changes", () => {
     const report = checkSong(exampleSong());
     expect(report.counts.avoid + report.counts.caution + report.counts.tip).toBeGreaterThan(0);
+  });
+});
+
+describe("current CVT edition", () => {
+  it("lowers Overdrive's top for women to D5", () => {
+    const od = tone({ mode: "overdrive", volume: 9 });
+    expect(rules(checkNote({ pitch: 62, vowel: "EH" }, od, female))).not.toContain("overdrive-too-high");
+    expect(rules(checkNote({ pitch: 63, vowel: "EH" }, od, female))).toContain("overdrive-too-high");
+  });
+
+  it("teaches Curbing on UH, O and OO", () => {
+    expect(rules(checkNote({ pitch: 64, vowel: "OO" }, tone({}), male))).toEqual([]);
+    expect(rules(checkNote({ pitch: 64, vowel: "I" }, tone({}), male))).toContain("vowel-ok");
+    expect(sungVowel("AH", "curbing", 64, "male")).toBe("UH");
+  });
+
+  it("keeps women out of Curbing above high C", () => {
+    expect(rules(checkNote({ pitch: 84, vowel: "UH" }, tone({}), female))).not.toContain("curbing-too-high");
+  });
+
+  it("puts reduced-density metal at medium volume", () => {
+    const reduced = tone({ mode: "overdrive", density: "reduced", volume: 6 });
+    expect(rules(checkNote({ pitch: 50, vowel: "EH" }, reduced, male))).toEqual([]);
+    expect(rules(checkNote({ pitch: 50, vowel: "EH" }, { ...reduced, volume: 9 }, male))).toContain(
+      "reduced-too-loud",
+    );
+    const quiet = checkNote({ pitch: 64, vowel: "EH" }, tone({ mode: "edge", volume: 5 }), male);
+    expect(quiet.find((c) => c.rule === "metal-too-quiet")!.fix!.tone).toEqual({ density: "reduced" });
+  });
+
+  it("allows medium Neutral in the middle part", () => {
+    const n = tone({ mode: "neutral", density: "fuller", volume: 6 });
+    expect(rules(checkNote({ pitch: 70, vowel: "AH" }, n, female))).toContain("neutral-medium-twang");
+    expect(rules(checkNote({ pitch: 70, vowel: "AH" }, n, { ...female, twang: 60 }))).toEqual([]);
+  });
+
+  it("keeps density valid when the mode changes", () => {
+    const c = toneWithMode(tone({ mode: "neutral", density: "falsetto", volume: 3 }), "curbing");
+    expect(c.density).toBe("reduced");
+    const e = patchTone(tone({}), { mode: "edge" });
+    expect(e.density).toBe("fuller");
+    expect(e.volume).toBe(8);
+    expect(patchTone(e, { density: "reduced" }).volume).toBe(6);
+  });
+
+  it("calls a change into falsetto a vocal break", () => {
+    const s = exampleSong();
+    s.notes = [
+      { id: "a", pitch: 60, start: 0, length: 4, vowel: "UH", tone: null },
+      {
+        id: "b",
+        pitch: 62,
+        start: 4,
+        length: 4,
+        vowel: "UH",
+        tone: tone({ mode: "neutral", density: "falsetto", volume: 3 }),
+      },
+    ];
+    expect(rules(checkSong(s).notes["b"] ?? [])).toContain("transition-break");
+  });
+
+  it("makes falsetto and reduced density sound less metallic", () => {
+    const ring = (t: Tone) => {
+      const r = renderTone(t, "EH", 54, male);
+      const { db, binHz } = magnitudeSpectrum(
+        r.samples,
+        r.sampleRate,
+        Math.floor(r.sampleRate * 0.8),
+        8192,
+        5000,
+      );
+      let band = 0,
+        all = 0;
+      db.forEach((d, i) => {
+        const p = Math.pow(10, d / 10);
+        all += p;
+        if (i * binHz >= 2500 && i * binHz < 3600) band += p;
+      });
+      return 10 * Math.log10(band / all);
+    };
+    const fuller = ring(tone({ mode: "edge", volume: 8 }));
+    expect(ring(tone({ mode: "edge", density: "reduced", volume: 6 }))).toBeLessThan(fuller);
+    expect(ring(tone({ mode: "neutral", density: "falsetto", volume: 3 }))).toBeLessThan(
+      ring(tone({ mode: "neutral", volume: 3 })),
+    );
   });
 });
 
