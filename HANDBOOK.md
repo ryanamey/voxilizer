@@ -351,6 +351,12 @@ add the production domain as a trusted domain.
   `packages/engine/src/pitch.ts` (McLeod NSDF with a low-pass prefilter and a spectral octave guard,
   ~3 ms per frame); the microphone is read through an AnalyserNode with browser voice processing off,
   and muted while the reference note plays. Verified in Chromium with a fake microphone.
+- **Grit Lab keyboard (2026-11-01):** "Play your tone": a C2–C6 keyboard under the tone designer.
+  Every key sings the designed tone at that pitch on the preview vowel; click, hold, drag to glide,
+  or use computer keys (A–; with Z/X for octaves). Keys within an octave of the preview note are
+  rendered in the background whenever the design changes (about 80 ms each), so presses play in
+  3–8 ms; other keys render on first press. Red/amber dots mark notes where the tone and vowel
+  break a CVT rule. The playback worklet gained crossfades between notes and a fade-out on release.
 - Tests: 41 engine tests, 17 web unit tests, 3 Playwright tests (+1 full auth flow behind `E2E_AUTH=1`).
 - Verified in headless Chromium: pages render in light and dark, the dashboard redirects to sign-in,
   form validation works, the piano roll adds / deletes / undoes notes, playback runs.

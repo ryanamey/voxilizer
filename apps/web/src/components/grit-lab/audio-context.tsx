@@ -3,7 +3,7 @@
 import { createContext, use, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AudioEngine, type RenderedAudio } from "@/audio/audio-engine";
 
-export type PlayingKind = "tone" | "melody" | "selection" | null;
+export type PlayingKind = "tone" | "melody" | "selection" | "key" | null;
 
 interface AudioState {
   engine: AudioEngine;
@@ -12,6 +12,8 @@ interface AudioState {
   play: (audio: RenderedAudio, kind: Exclude<PlayingKind, null>) => Promise<void>;
   playSequence: (clips: RenderedAudio[], kind: Exclude<PlayingKind, null>) => Promise<void>;
   stop: () => void;
+  /** Fade out what's playing (a keyboard key let go). */
+  release: () => void;
 }
 
 const Ctx = createContext<AudioState | null>(null);
@@ -53,6 +55,7 @@ export function GritLabAudioProvider({ children }: { children: ReactNode }) {
         setPosition(0);
       },
       stop: () => engine.stop(),
+      release: () => engine.release(),
     }),
     [engine, playing],
   );

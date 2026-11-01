@@ -4,6 +4,7 @@ import { GritLabAudioProvider } from "./audio-context";
 import { MelodyStudio } from "./melody-studio";
 import { SongBar } from "./song-bar";
 import { ToneDesigner } from "./tone-designer";
+import { ToneKeyboard } from "./tone-keyboard";
 
 /** Grit Lab: design a tone, write a melody, hear it and see its vocal load. */
 export function GritLab() {
@@ -12,6 +13,7 @@ export function GritLab() {
       <div className="flex flex-col gap-6">
         <SongBar />
         <ToneDesigner />
+        <ToneKeyboard />
         <MelodyStudio />
         <p className="text-xs text-muted-foreground">
           The sound is a synthesised approximation for choosing a target. It doesn&apos;t show how the throat

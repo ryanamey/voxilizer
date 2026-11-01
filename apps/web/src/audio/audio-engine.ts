@@ -107,6 +107,20 @@ export class AudioEngine {
     return this.audio({ kind: "melody", notes, options: { ...options, sampleRate: this.sampleRate } });
   }
 
+  /** Render one sustained note: a key on the Grit Lab keyboard. */
+  renderNote(
+    pitch: number,
+    vowel: Note["vowel"],
+    tone: Tone,
+    voice: VoiceSettings,
+    seconds = 3,
+  ): Promise<RenderedAudio> {
+    // At tempo 60 a step is a quarter second.
+    const steps = Math.max(1, Math.round(seconds * 4));
+    const note: Note = { id: "key", pitch, start: 0, length: steps, vowel, tone: null };
+    return this.renderMelody([note], { tempo: 60, songTone: tone, voice });
+  }
+
   /** Apply a tone to the loaded take (or return it clean). */
   renderTake(
     tone: Tone,
@@ -160,6 +174,11 @@ export class AudioEngine {
       at += c.samples.length + (i < clips.length - 1 ? gap : 0);
     });
     await this.play({ samples: joined, sampleRate: rate, secondsPerStep: 0, renderMs: 0 });
+  }
+
+  /** Fade the current sound out (a key let go). */
+  release(seconds = 0.12): void {
+    this.node?.port.postMessage({ type: "release", seconds });
   }
 
   stop(): void {
