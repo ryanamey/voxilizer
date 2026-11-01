@@ -196,6 +196,7 @@ voice, soft high note, pain); two weeks of hoarseness or any pain → referral s
 | 2026-10-28 | Synth modes calibrated against the CVT Sound Library (H1–H2, spectral tilt, 3 kHz ring)       | The synth should sound like the modes it names                                                                 |
 | 2026-10-28 | Follow the current CVT edition over the 2012 book: density, falsetto, Highway/Byway           | The founder supplied the app's "Updates since 2012" chapter; the app is the living source                      |
 | 2026-11-01 | Vocal Tuner: piano-based pitch trainer, detection in the pure engine (McLeod NSDF)            | Founder's request; pitch accuracy underlies every mode and effect; pure detector is testable and ports to WASM |
+| 2026-11-01 | Codex only connects GitHub, Vercel and Neon (push, deploy, migrate); Claude does all coding   | Founder's call: one agent owns the code, so changes don't collide                                              |
 
 **Names considered and rejected:** VoxDesign (voxdesign.com taken; "Vox" overlaps the VOX amp brand),
 VocalDesign (Roland sells "Vocal Designer"), VoxShape, VoxSketch, VoxPalette, Raspwell, Supravox,

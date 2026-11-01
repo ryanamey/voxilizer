@@ -13,13 +13,20 @@ Read these before doing anything, in order:
 
 - **Founder (Ali, GitHub `ryanamey`)**: product owner, architect, and the ears. Approves anything
   that costs money, touches production data, or can't be undone.
-- **Claude**: writes most features and the engine. Delivers commits as git bundles when it can't
-  push.
-- **Codex**: GitHub and Vercel operations (repo hygiene, pull requests, CI, deployments,
-  environment variables, domains), plus code when asked.
+- **Claude**: all coding: features, the engine, tests and docs. It commits on the founder's PC
+  (or delivers git bundles) but can't push to GitHub.
+- **Codex**: connects the project to **GitHub, Vercel and Neon**, and nothing else:
+  - push Claude's commits to GitHub, open and merge pull requests, keep CI green by reporting
+    failures (not by fixing code);
+  - Vercel: deployments, environment variables, domains;
+  - Neon: run the Drizzle migrations (`pnpm db:migrate`), development branch first.
 
-Keep each other informed through the repo: update `HANDBOOK.md` §8 (status) and `ROADMAP.md` when
-you finish something, and add a row to the decisions log (§4) for any decision.
+  **Codex does not write or change code**, including "small fixes", formatting, dependency bumps or
+  docs. If CI fails or something needs a code change, Codex reports it to the founder, who passes
+  it to Claude.
+
+Claude keeps `HANDBOOK.md` §8 (status), `ROADMAP.md` and the decisions log (§4) up to date. Codex
+reports what it did (pushes, deployments, migrations) to the founder, who tells Claude.
 
 ## Repository
 
@@ -27,7 +34,8 @@ you finish something, and add a row to the decisions log (§4) for any decision.
   lint, typecheck, unit tests, build and Playwright on every push and pull request.
 - pnpm 10 workspace, Node 22 (`.nvmrc`): `apps/web` (Next.js app) and `packages/engine` (pure
   TypeScript sound engine; must stay free of browser APIs).
-- Before every commit, all of these must pass:
+- Before every commit (Claude) and before every merge to `main` (Codex checks CI), all of these
+  must pass:
   ```bash
   pnpm install
   pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build
