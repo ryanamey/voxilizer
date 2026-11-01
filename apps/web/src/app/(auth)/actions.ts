@@ -19,8 +19,17 @@ export async function signInAction(input: unknown, next?: string): Promise<AuthA
   try {
     const { error } = await getAuth().signIn.email(parsed.data);
     // Deliberately vague: never reveal whether an email has an account.
-    if (error) failed = "That email and password don't match. Check them and try again.";
-  } catch {
+    if (error) {
+      // 401 is a wrong email/password; anything else is a setup problem worth logging.
+      if (error.status !== 401) console.error("[auth] sign-in error:", error.status, error.message);
+      failed =
+        error.status === 401 || error.status === 400
+          ? "That email and password don't match. Check them and try again."
+          : GENERIC_ERROR;
+    }
+  } catch (err) {
+    // Shown in Vercel's runtime logs: missing env vars, an untrusted domain, Neon Auth unreachable.
+    console.error("[auth] sign-in failed:", err);
     failed = GENERIC_ERROR;
   }
   if (failed) return { error: failed };
@@ -35,12 +44,14 @@ export async function signUpAction(input: unknown): Promise<AuthActionResult> {
   try {
     const { error } = await getAuth().signUp.email(parsed.data);
     if (error) {
+      console.error("[auth] sign-up error:", error.status, error.message);
       failed =
         error.status === 422 || /exist/i.test(error.message ?? "")
           ? "An account with this email already exists. Sign in instead."
           : (error.message ?? GENERIC_ERROR);
     }
-  } catch {
+  } catch (err) {
+    console.error("[auth] sign-up failed:", err);
     failed = GENERIC_ERROR;
   }
   if (failed) return { error: failed };

@@ -36,7 +36,8 @@ export async function saveSongAction(song: Song, id?: string | null): Promise<Ac
     const newId = await songsRepo.createSong(user.id, parsed.data);
     revalidatePath("/dashboard");
     return { ok: true, data: { id: newId } };
-  } catch {
+  } catch (err) {
+    console.error("[songs] save failed:", err);
     return fail("Saving failed. Check your connection and try again.");
   }
 }
@@ -47,7 +48,8 @@ export async function loadSongAction(id: string): Promise<ActionResult<{ id: str
   try {
     const found = await songsRepo.getSong(user.id, id);
     return found ? { ok: true, data: found } : fail("That song could not be found.");
-  } catch {
+  } catch (err) {
+    console.error("[songs] load failed:", err);
     return fail("Loading failed. Check your connection and try again.");
   }
 }
@@ -56,7 +58,8 @@ export async function listSongsAction(): Promise<ActionResult<songsRepo.SongSumm
   const user = await requireUser();
   try {
     return { ok: true, data: await songsRepo.listSongs(user.id) };
-  } catch {
+  } catch (err) {
+    console.error("[songs] list failed:", err);
     return fail("Your songs couldn't be loaded. Check your connection and try again.");
   }
 }
@@ -69,7 +72,8 @@ export async function deleteSongAction(id: string): Promise<ActionResult> {
     if (!deleted) return fail("That song could not be found.");
     revalidatePath("/dashboard");
     return { ok: true, data: undefined };
-  } catch {
+  } catch (err) {
+    console.error("[songs] delete failed:", err);
     return fail("Deleting failed. Check your connection and try again.");
   }
 }
