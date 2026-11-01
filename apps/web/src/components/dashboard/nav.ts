@@ -5,6 +5,7 @@ import {
   LineChartIcon,
   MicIcon,
   MusicIcon,
+  PianoIcon,
   SettingsIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -31,6 +32,12 @@ export const NAV_MAIN: NavItem[] = [
     href: "/dashboard/grit-lab",
     icon: AudioWaveformIcon,
     description: "Design a tone and a melody, hear it, and see its vocal load.",
+  },
+  {
+    title: "Vocal Tuner",
+    href: "/dashboard/vocal-tuner",
+    icon: PianoIcon,
+    description: "Pick a note on the piano, sing it, and see in real time how close you are.",
   },
   {
     title: "Songs",

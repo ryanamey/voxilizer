@@ -6,3 +6,4 @@ export * from "./render";
 export * from "./voice";
 export * from "./spectrum";
 export { midiToHz, noteName } from "./util";
+export * from "./pitch";

@@ -42,8 +42,9 @@ a Claude Docs artifact owned by the founder). Key facts the code relies on:
 apps/web                Next.js 16 (App Router, Turbopack, Cache Components), React 19, Tailwind v4, shadcn/ui
   src/app/(marketing)/  public website
   src/app/(auth)/       sign-in, sign-up (Neon Auth), server actions
-  src/app/dashboard/    signed-in area; grit-lab/ is the first section
+  src/app/dashboard/    signed-in area; grit-lab/ and vocal-tuner/ are built
   src/components/grit-lab/  the Grit Lab UI (Zustand store + zundo undo)
+  src/components/vocal-tuner/  the Vocal Tuner (piano, live mic pitch, 2-second hold)
   src/lib/              env (Zod), auth, DAL (requireUser), songs repository
   src/db/               Drizzle schema + client; migrations in apps/web/drizzle/
   src/proxy.ts          redirects signed-out users from /dashboard
