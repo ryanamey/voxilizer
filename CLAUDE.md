@@ -78,7 +78,8 @@ Later: Rust → WASM port of the engine (for real-time feedback, native apps, a 
 Neon branches: `production` (Vercel env vars only) and `development` (`apps/web/.env.local`, git-ignored).
 Never commit secrets. Schema changes go through Drizzle migrations, applied to development first.
 
-Team: the founder (product, architecture, and the ears) plus Claude (code). Keep tooling minimal.
+Team: the founder (product, architecture, and the ears), Claude (code) and Codex (GitHub and Vercel
+operations; see `AGENTS.md`). Keep tooling minimal.
 
 ## Conventions
 
