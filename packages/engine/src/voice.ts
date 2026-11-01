@@ -8,7 +8,7 @@
  * put back on, so the result keeps their pitch, vowel and timbre.
  * Ported from the Grit Lab prototype.
  */
-import type { Tone, VoiceSettings } from "./song";
+import { tractOf, type Tone } from "./song";
 import { createRng } from "./util";
 
 const HOP = 256;
@@ -237,13 +237,7 @@ export function normalize(x: Float32Array, peakTarget = 0.85): Float32Array<Arra
 }
 
 /** Apply a tone (effects + tract settings) to an analysed take. Returns new audio. */
-export function processVoice(
-  x: Float32Array,
-  an: VoiceAnalysis,
-  tone: Tone,
-  voice: Pick<VoiceSettings, "larynx" | "twang">,
-  seed = 11,
-): Float32Array {
+export function processVoice(x: Float32Array, an: VoiceAnalysis, tone: Tone, seed = 11): Float32Array {
   const N = x.length,
     SR = an.sampleRate,
     pre = an.pre,
@@ -358,6 +352,7 @@ export function processVoice(
   }
 
   // 4. Tract handles as gentle EQ on top of the singer's own shape.
+  const voice = tractOf(tone);
   const lar = voice.larynx / 100;
   out = applyBiquad(out, biquad("high", 2500, lar * 6 - gu * 6, 0.7, SR));
   out = applyBiquad(out, biquad("low", 300, -lar * 3 + gu * 3, 0.7, SR));

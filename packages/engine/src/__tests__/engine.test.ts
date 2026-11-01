@@ -69,6 +69,12 @@ describe("renderMelody", () => {
     expect(peak).toBeGreaterThan(0.3);
   });
 
+  it("uses each tone's own larynx and twang", () => {
+    const a = renderTone({ ...clean, twang: 0, larynx: -40 }, "AH", 52, DEFAULT_VOICE).samples;
+    const b = renderTone({ ...clean, twang: 90, larynx: 40 }, "AH", 52, DEFAULT_VOICE).samples;
+    expect(a).not.toEqual(b);
+  });
+
   it("is deterministic for the same input and seed", () => {
     const a = renderMelody(song.notes, { ...opts, seed: 5 })!;
     const b = renderMelody(song.notes, { ...opts, seed: 5 })!;

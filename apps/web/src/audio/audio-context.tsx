@@ -20,8 +20,8 @@ const Ctx = createContext<AudioState | null>(null);
 /** Kept separate so the ~30 Hz position updates only re-render what shows a playhead. */
 const PositionCtx = createContext(-1);
 
-/** One AudioEngine (context + worklet + worker) shared by every Grit Lab panel. */
-export function GritLabAudioProvider({ children }: { children: ReactNode }) {
+/** One AudioEngine (context + worklet + worker) shared by every panel on a page. */
+export function AudioProvider({ children }: { children: ReactNode }) {
   const [engine] = useState(() => new AudioEngine());
   const [playing, setPlaying] = useState<PlayingKind>(null);
   const [position, setPosition] = useState(-1);
@@ -67,9 +67,9 @@ export function GritLabAudioProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useGritLabAudio(): AudioState {
+export function useAudio(): AudioState {
   const v = use(Ctx);
-  if (!v) throw new Error("useGritLabAudio must be used inside GritLabAudioProvider");
+  if (!v) throw new Error("useAudio must be used inside AudioProvider");
   return v;
 }
 

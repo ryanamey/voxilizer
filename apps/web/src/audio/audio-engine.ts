@@ -122,12 +122,8 @@ export class AudioEngine {
   }
 
   /** Apply a tone to the loaded take (or return it clean). */
-  renderTake(
-    tone: Tone,
-    voice: Pick<VoiceSettings, "larynx" | "twang">,
-    clean = false,
-  ): Promise<RenderedAudio> {
-    return this.audio({ kind: "take-process", takeId: this.takeId, tone, voice, clean });
+  renderTake(tone: Tone, clean = false): Promise<RenderedAudio> {
+    return this.audio({ kind: "take-process", takeId: this.takeId, tone, clean });
   }
 
   /** Decode, trim and analyse a recording or uploaded file. */

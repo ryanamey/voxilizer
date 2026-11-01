@@ -23,7 +23,7 @@ test("sign-up validates before contacting the server", async ({ page }) => {
 test.describe("with a live Neon Auth project", () => {
   test.skip(!process.env.E2E_AUTH, "Set E2E_AUTH=1 (and .env.local) to run the full auth flow.");
 
-  test("sign up, open Grit Lab, play a tone, sign out", async ({ page }) => {
+  test("sign up, play a tone in Grit Lab, open Melody Studio, sign out", async ({ page }) => {
     const email = `e2e+${Date.now()}@example.com`;
     await page.goto("/sign-up");
     await page.getByLabel("Name").fill("E2E Singer");
@@ -32,8 +32,10 @@ test.describe("with a live Neon Auth project", () => {
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.getByRole("link", { name: "Grit Lab" }).first().click();
-    await expect(page.getByRole("heading", { name: "Melody studio" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Play your tone" })).toBeVisible();
     await page.getByRole("button", { name: "Play", exact: true }).click();
+    await page.getByRole("link", { name: "Melody Studio" }).first().click();
+    await expect(page.getByRole("heading", { name: "Melody", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /E2E Singer/ }).click();
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await expect(page).toHaveURL("/");

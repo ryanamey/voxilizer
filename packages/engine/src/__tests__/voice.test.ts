@@ -34,7 +34,7 @@ describe("processVoice", () => {
 
   it("returns finite, normalised audio of the same length for every effect", () => {
     for (const effect of ["none", "creak", "rattle", "growl", "grunt"] as const) {
-      const y = processVoice(take, an, { ...clean, effect, amount: 70, ff: 40 }, { larynx: -40, twang: 50 });
+      const y = processVoice(take, an, { ...clean, effect, amount: 70, ff: 40, larynx: -40, twang: 50 });
       expect(y.length).toBe(take.length);
       let peak = 0,
         finite = true;
@@ -48,7 +48,7 @@ describe("processVoice", () => {
   });
 
   it("with no effect, closely reconstructs the take", () => {
-    const y = processVoice(take, an, clean, { larynx: 0, twang: 0 });
+    const y = processVoice(take, an, { ...clean, larynx: 0, twang: 0 });
     const x = prepareTake(take, SR)!;
     expect(x).not.toBeNull();
     // Compare spectra in the steady middle (robust to the DC blocker).

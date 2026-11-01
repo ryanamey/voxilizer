@@ -13,7 +13,7 @@ import {
 import type { RenderedAudio } from "@/audio/audio-engine";
 import { isBlack, keyName } from "@/components/vocal-tuner/tuner";
 import { cn } from "@/lib/utils";
-import { useGritLabAudio } from "./audio-context";
+import { useAudio } from "@/audio/audio-context";
 import { useGritLab } from "./store";
 
 const WHITE_W = 28;
@@ -43,9 +43,10 @@ const signature = (tone: Tone, voice: VoiceSettings, vowel: Note["vowel"]) =>
  * Notes are rendered in the background as the design changes, so pressing a key is instant.
  */
 export function ToneKeyboard() {
-  const { engine, play, release } = useGritLabAudio();
-  const tone = useGritLab((s) => s.song.tone);
-  const voice = useGritLab((s) => s.song.voice);
+  const { engine, play, release } = useAudio();
+  const tone = useGritLab((s) => s.tone);
+  const singer = useGritLab((s) => s.singer);
+  const voice = useMemo(() => ({ singer }), [singer]);
   const vowel = useGritLab((s) => s.preview.vowel);
   const previewPitch = useGritLab((s) => s.preview.pitch);
   const { setPreview } = useGritLab.getState();
@@ -63,7 +64,7 @@ export function ToneKeyboard() {
       const hit = cache.current.get(pitch);
       if (hit) return hit;
       const s = useGritLab.getState();
-      const p = engine.renderNote(pitch, s.preview.vowel, s.song.tone, s.song.voice, NOTE_SECONDS);
+      const p = engine.renderNote(pitch, s.preview.vowel, s.tone, { singer: s.singer }, NOTE_SECONDS);
       p.catch(() => cache.current.delete(pitch));
       cache.current.set(pitch, p);
       // Forget the oldest renders so memory stays bounded.

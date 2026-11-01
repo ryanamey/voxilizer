@@ -32,18 +32,41 @@ export const ToneSchema = z.object({
   amount: z.number().min(0).max(100),
   /** Distortion (false-fold noise), 0–100. */
   ff: z.number().min(0).max(100),
+  /** Larynx height: -100 (lowered, dark) to 100 (raised, light). Missing = 0. */
+  larynx: z.number().min(-100).max(100).optional(),
+  /** Twang above the "necessary twang" every note has: 0 = necessary only, 100 = distinct. Missing = 20. */
+  twang: z.number().min(0).max(100).optional(),
+  /**
+   * Where this tone came from, when it was picked from the singer's tone library. Songs keep a copy
+   * of the tone; `savedAt` lets the app notice when the library version has changed since.
+   */
+  origin: z
+    .object({ id: z.string().max(64), name: z.string().max(80), savedAt: z.string().max(40) })
+    .optional(),
 });
 export type Tone = z.infer<typeof ToneSchema>;
+export type ToneOrigin = NonNullable<Tone["origin"]>;
 
-/** Whole-song settings: who sings, and the vocal-tract colour for every note. */
+/** Whole-song settings: who sings. (Larynx and twang belong to each tone since format v3.) */
 export const VoiceSettingsSchema = z.object({
   singer: z.enum(SINGER_IDS),
-  /** -100 (lowered larynx, dark) to 100 (raised larynx, light). */
-  larynx: z.number().min(-100).max(100),
-  /** Twang above the "necessary twang" every note has: 0 = necessary only, 100 = distinct twang. */
-  twang: z.number().min(0).max(100),
 });
 export type VoiceSettings = z.infer<typeof VoiceSettingsSchema>;
+
+export const DEFAULT_LARYNX = 0;
+export const DEFAULT_TWANG = 20;
+
+/** A tone's vocal-tract colour, with defaults filled in. */
+export function tractOf(tone: Pick<Tone, "larynx" | "twang">): { larynx: number; twang: number } {
+  return { larynx: tone.larynx ?? DEFAULT_LARYNX, twang: tone.twang ?? DEFAULT_TWANG };
+}
+
+/** The sound of a tone only: what two tones must share to sound the same (no origin label). */
+export function soundOf(tone: Tone): Omit<Tone, "origin"> {
+  const { origin: _origin, ...sound } = tone;
+  void _origin;
+  return { ...sound, ...tractOf(tone), density: densityOf(sound) };
+}
 
 export const NoteSchema = z.object({
   id: z.string(),
@@ -64,7 +87,7 @@ export type Note = z.infer<typeof NoteSchema>;
  * `parseSong` migrates every earlier version.
  */
 export const SongSchema = z.object({
-  version: z.literal(2),
+  version: z.literal(3),
   title: z.string(),
   tempo: z.number().min(40).max(240),
   bars: z.number().int().min(1).max(64),
@@ -73,6 +96,34 @@ export const SongSchema = z.object({
   notes: z.array(NoteSchema),
 });
 export type Song = z.infer<typeof SongSchema>;
+
+// ---- version 2 (larynx and twang were song-wide) ----
+
+const SongV2 = z.object({
+  version: z.literal(2),
+  title: z.string(),
+  tempo: z.number().min(40).max(240),
+  bars: z.number().int().min(1).max(64),
+  tone: ToneSchema,
+  voice: z.object({
+    singer: z.enum(SINGER_IDS),
+    larynx: z.number().min(-100).max(100),
+    twang: z.number().min(0).max(100),
+  }),
+  notes: z.array(NoteSchema),
+});
+type SongV2 = z.infer<typeof SongV2>;
+
+function migrateV2(s: SongV2): Song {
+  const tract = { larynx: s.voice.larynx, twang: s.voice.twang };
+  return {
+    ...s,
+    version: 3,
+    tone: { ...s.tone, ...tract },
+    voice: { singer: s.voice.singer },
+    notes: s.notes.map((n) => ({ ...n, tone: n.tone ? { ...n.tone, ...tract } : null })),
+  };
+}
 
 // ---- version 1 (before CVT volume, singer and vowels) ----
 
@@ -123,7 +174,7 @@ export function typicalVolume(mode: ModeId, density: DensityId): number {
   return MODE_VOLUME[mode];
 }
 
-function migrateV1(s: z.infer<typeof SongV1>): Song {
+function migrateV1(s: z.infer<typeof SongV1>): SongV2 {
   const air = s.voice.air;
   const tone = (t: z.infer<typeof ToneV1>): Tone => ({
     ...t,
@@ -153,7 +204,8 @@ function migrateV1(s: z.infer<typeof SongV1>): Song {
 /** Parse a stored song of any version into the current format. Throws on invalid input. */
 export function parseSong(input: unknown): Song {
   const version = (input as { version?: unknown } | null)?.version;
-  if (version === 1) return SongSchema.parse(migrateV1(SongV1.parse(input)));
+  if (version === 1) return SongSchema.parse(migrateV2(SongV2.parse(migrateV1(SongV1.parse(input)))));
+  if (version === 2) return SongSchema.parse(migrateV2(SongV2.parse(input)));
   return SongSchema.parse(input);
 }
 
@@ -165,8 +217,10 @@ export const DEFAULT_TONE: Tone = {
   effect: "none",
   amount: 40,
   ff: 0,
+  larynx: DEFAULT_LARYNX,
+  twang: DEFAULT_TWANG,
 };
-export const DEFAULT_VOICE: VoiceSettings = { singer: "male", larynx: 0, twang: 20 };
+export const DEFAULT_VOICE: VoiceSettings = { singer: "male" };
 
 /** The example rock phrase from the Grit Lab prototype, with CVT-correct vowels for a male voice. */
 export function exampleSong(): Song {
@@ -184,6 +238,8 @@ export function exampleSong(): Song {
     effect,
     amount,
     ff,
+    larynx: DEFAULT_LARYNX,
+    twang: DEFAULT_TWANG,
   });
   const raw: Array<[number, number, number, Note["vowel"], Tone | null]> = [
     [57, 0, 4, "AH", null],
@@ -203,7 +259,7 @@ export function exampleSong(): Song {
     [57, 56, 8, "OH", t("overdrive", 8, "growl", 45, 35)],
   ];
   return {
-    version: 2,
+    version: 3,
     title: "Example phrase",
     tempo: 92,
     bars: 4,

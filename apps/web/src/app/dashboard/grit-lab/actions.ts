@@ -1,79 +1,65 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
-import { SongSchema, type Song } from "@voxilizer/engine";
 import { requireUser } from "@/lib/dal";
-import * as songsRepo from "@/lib/songs";
+import * as tonesRepo from "@/lib/tones";
+import { SavedToneDataSchema, toneNameSchema, type SavedTone } from "@/lib/validation/tones";
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
 
-const MAX_NOTES = 2000;
 const idSchema = z.uuid();
-const saveSchema = SongSchema.refine(
-  (s) => s.notes.length <= MAX_NOTES,
-  `A song can have at most ${MAX_NOTES} notes.`,
-);
+const fail = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
-function fail(message: string): { ok: false; error: string } {
-  return { ok: false, error: message };
+/** The signed-in singer's tone library, newest first. */
+export async function listTonesAction(): Promise<ActionResult<SavedTone[]>> {
+  const user = await requireUser();
+  try {
+    return { ok: true, data: await tonesRepo.listTones(user.id) };
+  } catch (err) {
+    console.error("[tones] list failed:", err);
+    return fail("Your tones couldn't be loaded. Check your connection and try again.");
+  }
 }
 
-/** Create a new song, or update an existing one the user owns. Returns the song id. */
-export async function saveSongAction(song: Song, id?: string | null): Promise<ActionResult<{ id: string }>> {
+/** Save a new tone, or overwrite one the user owns when `id` is given. */
+export async function saveToneAction(
+  name: unknown,
+  data: unknown,
+  id?: string | null,
+): Promise<ActionResult<SavedTone>> {
   const user = await requireUser();
-  const parsed = saveSchema.safeParse(song);
-  if (!parsed.success) return fail("This song couldn't be saved because some of its data is invalid.");
-  if (id && !idSchema.safeParse(id).success) return fail("That song could not be found.");
+  const parsedName = toneNameSchema.safeParse(name);
+  if (!parsedName.success) return fail(parsedName.error.issues[0]?.message ?? "Check the tone's name.");
+  const parsedData = SavedToneDataSchema.safeParse(data);
+  if (!parsedData.success)
+    return fail("This tone couldn't be saved because some of its settings are invalid.");
+  if (id && !idSchema.safeParse(id).success) return fail("That tone could not be found.");
 
   try {
     if (id) {
-      const updated = await songsRepo.updateSong(user.id, id, parsed.data);
-      if (!updated) return fail("That song could not be found. It may have been deleted.");
-      revalidatePath("/dashboard");
-      return { ok: true, data: { id } };
+      const updated = await tonesRepo.updateTone(user.id, id, parsedName.data, parsedData.data);
+      return updated
+        ? { ok: true, data: updated }
+        : fail("That tone could not be found. It may have been deleted.");
     }
-    const newId = await songsRepo.createSong(user.id, parsed.data);
-    revalidatePath("/dashboard");
-    return { ok: true, data: { id: newId } };
+    if ((await tonesRepo.countTones(user.id)) >= tonesRepo.MAX_TONES)
+      return fail(`Your library is full (${tonesRepo.MAX_TONES} tones). Delete some to save new ones.`);
+    return { ok: true, data: await tonesRepo.createTone(user.id, parsedName.data, parsedData.data) };
   } catch (err) {
-    console.error("[songs] save failed:", err);
+    console.error("[tones] save failed:", err);
     return fail("Saving failed. Check your connection and try again.");
   }
 }
 
-export async function loadSongAction(id: string): Promise<ActionResult<{ id: string; song: Song }>> {
+export async function deleteToneAction(id: string): Promise<ActionResult> {
   const user = await requireUser();
-  if (!idSchema.safeParse(id).success) return fail("That song could not be found.");
+  if (!idSchema.safeParse(id).success) return fail("That tone could not be found.");
   try {
-    const found = await songsRepo.getSong(user.id, id);
-    return found ? { ok: true, data: found } : fail("That song could not be found.");
+    return (await tonesRepo.deleteTone(user.id, id))
+      ? { ok: true, data: undefined }
+      : fail("That tone could not be found.");
   } catch (err) {
-    console.error("[songs] load failed:", err);
-    return fail("Loading failed. Check your connection and try again.");
-  }
-}
-
-export async function listSongsAction(): Promise<ActionResult<songsRepo.SongSummary[]>> {
-  const user = await requireUser();
-  try {
-    return { ok: true, data: await songsRepo.listSongs(user.id) };
-  } catch (err) {
-    console.error("[songs] list failed:", err);
-    return fail("Your songs couldn't be loaded. Check your connection and try again.");
-  }
-}
-
-export async function deleteSongAction(id: string): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!idSchema.safeParse(id).success) return fail("That song could not be found.");
-  try {
-    const deleted = await songsRepo.deleteSong(user.id, id);
-    if (!deleted) return fail("That song could not be found.");
-    revalidatePath("/dashboard");
-    return { ok: true, data: undefined };
-  } catch (err) {
-    console.error("[songs] delete failed:", err);
+    console.error("[tones] delete failed:", err);
     return fail("Deleting failed. Check your connection and try again.");
   }
 }

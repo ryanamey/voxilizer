@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   LayoutDashboardIcon,
   LineChartIcon,
+  ListMusicIcon,
   MicIcon,
   MusicIcon,
   PianoIcon,
@@ -31,7 +32,13 @@ export const NAV_MAIN: NavItem[] = [
     title: "Grit Lab",
     href: "/dashboard/grit-lab",
     icon: AudioWaveformIcon,
-    description: "Design a tone and a melody, hear it, and see its vocal load.",
+    description: "Design a vocal tone, hear it on any note, and save it to your library.",
+  },
+  {
+    title: "Melody Studio",
+    href: "/dashboard/melody-studio",
+    icon: ListMusicIcon,
+    description: "Write a vocal line with your saved tones and see its vocal load.",
   },
   {
     title: "Vocal Tuner",

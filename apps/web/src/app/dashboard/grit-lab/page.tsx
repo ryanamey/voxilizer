@@ -9,7 +9,7 @@ export default function GritLabPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Grit Lab"
-        description="Shape a rough vocal tone, write the line, and hear it without spending your voice."
+        description="Design a vocal tone, hear it on any note without spending your voice, and save it to your library."
       />
       <GritLab />
     </div>

@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { PITCH_MAX, PITCH_MIN, noteName, type CheckSeverity, type Note, type Stage } from "@voxilizer/engine";
 import { clampMove, newNoteId, STEPS_PER_BAR } from "./notes";
-import { cssVar } from "./scopes";
-import { useGritLab } from "./store";
+import { cssVar } from "@/components/grit-lab/scopes";
+import { useMelody } from "./store";
 
 const KEY_W = 46;
 const STEP_W = 20;
@@ -46,9 +46,9 @@ export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: Piano
   const dragRef = useRef<Drag | null>(null);
   const movedRef = useRef(false);
 
-  const notes = useGritLab((s) => s.song.notes);
-  const bars = useGritLab((s) => s.song.bars);
-  const selection = useGritLab((s) => s.selection);
+  const notes = useMelody((s) => s.song.notes);
+  const bars = useMelody((s) => s.song.bars);
+  const selection = useMelody((s) => s.selection);
   const totalSteps = bars * STEPS_PER_BAR;
 
   const draw = useCallback(() => {
@@ -186,7 +186,7 @@ export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: Piano
     if (c.x < KEY_W || c.step >= totalSteps || c.pitch < PITCH_MIN || c.pitch > PITCH_MAX) return;
     canvasRef.current!.focus();
     canvasRef.current!.setPointerCapture(e.pointerId);
-    const st = useGritLab.getState();
+    const st = useMelody.getState();
     const list = st.song.notes.map((n) => ({ ...n }));
     const found = hit(list, c.step, c.pitch);
     let sel = new Set(st.selection);
@@ -232,7 +232,7 @@ export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: Piano
     const drag = dragRef.current,
       list = draftRef.current;
     if (!drag || !list) {
-      const found = hit(useGritLab.getState().song.notes, c.step, c.pitch);
+      const found = hit(useMelody.getState().song.notes, c.step, c.pitch);
       e.currentTarget.style.cursor = found
         ? KEY_W + (found.start + found.length) * STEP_W - c.x < EDGE_PX
           ? "ew-resize"
@@ -275,7 +275,7 @@ export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: Piano
     dragRef.current = null;
     draftRef.current = null;
     if (!drag || !list) return;
-    const st = useGritLab.getState();
+    const st = useMelody.getState();
     if (drag.type === "resize" && drag.created) {
       const n = list.find((x) => x.id === drag.id)!;
       st.addNote(n);
@@ -290,7 +290,7 @@ export function PianoRoll({ noteStages, noteFlags, playStep, onAudition }: Piano
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    const st = useGritLab.getState();
+    const st = useMelody.getState();
     if (!st.selection.length) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();

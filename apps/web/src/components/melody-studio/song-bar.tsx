@@ -10,7 +10,7 @@ import {
   listSongsAction,
   loadSongAction,
   saveSongAction,
-} from "@/app/dashboard/grit-lab/actions";
+} from "@/app/dashboard/melody-studio/actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { useGritLab, useIsDirty } from "./store";
+import { useMelody, useIsDirty } from "./store";
 
 type SongSummary = { id: string; title: string; updatedAt: Date; noteCount: number };
 const dateFmt = new Intl.DateTimeFormat("en", {
@@ -38,11 +38,11 @@ const dateFmt = new Intl.DateTimeFormat("en", {
 /** Title, new/open/save and undo/redo for the song being edited. */
 export function SongBar() {
   const router = useRouter();
-  const title = useGritLab((s) => s.song.title);
-  const songId = useGritLab((s) => s.songId);
+  const title = useMelody((s) => s.song.title);
+  const songId = useMelody((s) => s.songId);
   const dirty = useIsDirty();
-  const canUndo = useStore(useGritLab.temporal, (t) => t.pastStates.length > 0);
-  const canRedo = useStore(useGritLab.temporal, (t) => t.futureStates.length > 0);
+  const canUndo = useStore(useMelody.temporal, (t) => t.pastStates.length > 0);
+  const canRedo = useStore(useMelody.temporal, (t) => t.futureStates.length > 0);
   const [saving, startSave] = useTransition();
   const [openList, setOpenList] = useState(false);
   const [songs, setSongs] = useState<SongSummary[] | null>(null);
@@ -52,9 +52,9 @@ export function SongBar() {
   // useSearchParams, so the editor can render in the page's static shell.
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("song");
-    if (!requested || requested === useGritLab.getState().songId) return;
+    if (!requested || requested === useMelody.getState().songId) return;
     void loadSongAction(requested).then((r) => {
-      if (r.ok) useGritLab.getState().loadSong(r.data.song, r.data.id);
+      if (r.ok) useMelody.getState().loadSong(r.data.song, r.data.id);
       else toast.error(r.error);
     });
   }, []);
@@ -75,29 +75,29 @@ export function SongBar() {
       if (!(e.ctrlKey || e.metaKey) || (e.key.toLowerCase() !== "z" && e.key.toLowerCase() !== "y")) return;
       e.preventDefault();
       const redo = e.key.toLowerCase() === "y" || e.shiftKey;
-      if (redo) useGritLab.temporal.getState().redo();
-      else useGritLab.temporal.getState().undo();
+      if (redo) useMelody.temporal.getState().redo();
+      else useMelody.temporal.getState().undo();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   function guard(label: string, run: () => void) {
-    if (useGritLab.getState().song.notes.length && dirty) setConfirm({ label, run });
+    if (useMelody.getState().song.notes.length && dirty) setConfirm({ label, run });
     else run();
   }
 
   function save() {
     startSave(async () => {
-      const { song, songId: id } = useGritLab.getState();
+      const { song, songId: id } = useMelody.getState();
       const r = await saveSongAction(song, id);
       if (!r.ok) {
         toast.error(r.error);
         return;
       }
-      useGritLab.getState().markSaved(r.data.id);
+      useMelody.getState().markSaved(r.data.id);
       if (new URLSearchParams(window.location.search).get("song") !== r.data.id)
-        router.replace(`/dashboard/grit-lab?song=${r.data.id}`, { scroll: false });
+        router.replace(`/dashboard/melody-studio?song=${r.data.id}`, { scroll: false });
       toast.success("Song saved");
     });
   }
@@ -116,8 +116,8 @@ export function SongBar() {
   async function open(id: string) {
     const r = await loadSongAction(id);
     if (!r.ok) return toast.error(r.error);
-    useGritLab.getState().loadSong(r.data.song, r.data.id);
-    router.replace(`/dashboard/grit-lab?song=${id}`, { scroll: false });
+    useMelody.getState().loadSong(r.data.song, r.data.id);
+    router.replace(`/dashboard/melody-studio?song=${id}`, { scroll: false });
     setOpenList(false);
   }
 
@@ -125,9 +125,9 @@ export function SongBar() {
     const r = await deleteSongAction(id);
     if (!r.ok) return toast.error(r.error);
     setSongs((list) => list?.filter((s) => s.id !== id) ?? null);
-    if (useGritLab.getState().songId === id) {
-      useGritLab.getState().newSong();
-      router.replace("/dashboard/grit-lab", { scroll: false });
+    if (useMelody.getState().songId === id) {
+      useMelody.getState().newSong();
+      router.replace("/dashboard/melody-studio", { scroll: false });
     }
     toast.success("Song deleted");
   }
@@ -138,7 +138,7 @@ export function SongBar() {
         aria-label="Song title"
         value={title}
         maxLength={120}
-        onChange={(e) => useGritLab.getState().setTitle(e.target.value)}
+        onChange={(e) => useMelody.getState().setTitle(e.target.value)}
         className="h-9 w-full max-w-xs font-semibold sm:w-64"
       />
       <span className="w-24 text-xs text-muted-foreground" aria-live="polite">
@@ -152,7 +152,7 @@ export function SongBar() {
           aria-label="Undo"
           title="Undo (Ctrl+Z)"
           disabled={!canUndo}
-          onClick={() => useGritLab.temporal.getState().undo()}
+          onClick={() => useMelody.temporal.getState().undo()}
         >
           <Undo2Icon />
         </Button>
@@ -163,7 +163,7 @@ export function SongBar() {
           aria-label="Redo"
           title="Redo (Ctrl+Shift+Z)"
           disabled={!canRedo}
-          onClick={() => useGritLab.temporal.getState().redo()}
+          onClick={() => useMelody.temporal.getState().redo()}
         >
           <Redo2Icon />
         </Button>
@@ -173,8 +173,8 @@ export function SongBar() {
           size="sm"
           onClick={() =>
             guard("Start a new song", () => {
-              useGritLab.getState().newSong();
-              router.replace("/dashboard/grit-lab", { scroll: false });
+              useMelody.getState().newSong();
+              router.replace("/dashboard/melody-studio", { scroll: false });
             })
           }
         >

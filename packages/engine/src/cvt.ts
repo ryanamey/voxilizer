@@ -19,7 +19,15 @@ import {
   type SingerId,
   type VowelId,
 } from "./constants";
-import { densityOf, typicalVolume, type Note, type Song, type Tone, type VoiceSettings } from "./song";
+import {
+  densityOf,
+  tractOf,
+  typicalVolume,
+  type Note,
+  type Song,
+  type Tone,
+  type VoiceSettings,
+} from "./song";
 import { noteName } from "./util";
 
 // ---------------------------------------------------------------------------
@@ -205,6 +213,7 @@ const vowelName = (v: VowelId) => `${v} (as in "${VOWELS[v].word}")`;
 
 /** Check one note (or the tone designer's preview) against CVT's rules. */
 export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice: VoiceSettings): Check[] {
+  const tract = tractOf(tone);
   const out: Check[] = [];
   const { mode, volume } = tone;
   const density = densityOf(tone);
@@ -319,7 +328,7 @@ export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice
             ? { label: "Switch to Overdrive", tone: { mode: "overdrive", density: "fuller", air: 0 } }
             : { label: "Switch to Curbing", tone: { mode: "curbing", air: 0 } },
       });
-    } else if (part === "middle" && volume > 4 && voice.twang < 40 && density !== "falsetto") {
+    } else if (part === "middle" && volume > 4 && tract.twang < 40 && density !== "falsetto") {
       out.push({
         rule: "neutral-medium-twang",
         severity: "tip",
@@ -381,7 +390,7 @@ export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice
   }
 
   // Sound colour inside the metallic modes.
-  if (mode === "edge" && voice.larynx < -20) {
+  if (mode === "edge" && tract.larynx < -20) {
     out.push({
       rule: "edge-dark",
       severity: "caution",
@@ -390,7 +399,7 @@ export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice
         "Edge needs a raised larynx and distinct twang. Lowering the larynx loses the twang and can hurt. The lighter a metallic mode, the safer.",
       fix: undefined,
     });
-  } else if (metallic && voice.larynx < -50) {
+  } else if (metallic && tract.larynx < -50) {
     out.push({
       rule: "metal-dark",
       severity: "caution",
@@ -399,7 +408,7 @@ export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice
         "Darkening a metallic mode raises the risk of breaks and constriction. Only colour it this dark when the mode itself is secure.",
     });
   }
-  if (mode === "edge" && voice.twang < 30) {
+  if (mode === "edge" && tract.twang < 30) {
     out.push({
       rule: "edge-twang",
       severity: "tip",
@@ -410,7 +419,7 @@ export function checkNote(note: Pick<Note, "pitch" | "vowel">, tone: Tone, voice
 
   // Effects.
   const hasEffect = tone.effect !== "none" && tone.amount > 0;
-  if (tone.ff > 0 && voice.larynx < -20) {
+  if (tone.ff > 0 && tract.larynx < -20) {
     out.push({
       rule: "distortion-dark",
       severity: "caution",

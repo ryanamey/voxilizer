@@ -33,10 +33,10 @@ async function RecentSongs() {
     return (
       <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-muted-foreground">
-          No saved songs yet. Write a melody in Grit Lab and save it to see it here.
+          No saved songs yet. Write a melody in Melody Studio and save it to see it here.
         </p>
         <Button asChild size="sm">
-          <Link href="/dashboard/grit-lab">Open Grit Lab</Link>
+          <Link href="/dashboard/melody-studio">Open Melody Studio</Link>
         </Button>
       </div>
     );
@@ -46,7 +46,7 @@ async function RecentSongs() {
       {songs.map((s) => (
         <li key={s.id}>
           <Link
-            href={`/dashboard/grit-lab?song=${s.id}`}
+            href={`/dashboard/melody-studio?song=${s.id}`}
             className="flex items-center gap-3 rounded-md px-2 py-3 hover:bg-muted/50"
           >
             <MusicIcon className="size-4 shrink-0 text-muted-foreground" />

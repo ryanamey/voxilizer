@@ -1,5 +1,6 @@
 import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { Song } from "@voxilizer/engine";
+import type { SavedToneData } from "@/lib/validation/tones";
 
 /**
  * Application tables. Users, sessions and accounts are managed by Neon Auth in
@@ -24,3 +25,22 @@ export const songs = pgTable(
 );
 
 export type SongRow = typeof songs.$inferSelect;
+
+/** A tone saved from Grit Lab into the singer's library. `data` is validated by `SavedToneDataSchema`. */
+export const tones = pgTable(
+  "tones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    data: jsonb("data").$type<SavedToneData>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("tones_user_updated_idx").on(t.userId, t.updatedAt)],
+);
+
+export type ToneRow = typeof tones.$inferSelect;

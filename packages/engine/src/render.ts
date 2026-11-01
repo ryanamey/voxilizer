@@ -14,7 +14,7 @@
  */
 import { MODES, SINGERS, VOWELS } from "./constants";
 import type { Note, Tone, VoiceSettings } from "./song";
-import { densityOf, STEPS_PER_BEAT } from "./song";
+import { densityOf, STEPS_PER_BEAT, tractOf } from "./song";
 import { createRng, midiToHz, resonatorCoefs } from "./util";
 
 export const DEFAULT_SAMPLE_RATE = 44100;
@@ -68,8 +68,9 @@ function targetFor(note: Note, songTone: Tone, voice: VoiceSettings): Target {
   const m = MODES[q.mode];
   const a = q.effect === "none" ? 0 : q.amount / 100;
   const gu = q.effect === "grunt" ? a : 0;
-  const tw = voice.twang / 100;
-  const vs = SINGERS[voice.singer].scale * (1 + 0.11 * (voice.larynx / 100)) * (1 - 0.08 * gu);
+  const tract = tractOf(q);
+  const tw = tract.twang / 100;
+  const vs = SINGERS[voice.singer].scale * (1 + 0.11 * (tract.larynx / 100)) * (1 - 0.08 * gu);
   const base = VOWELS[note.vowel].formants;
   // CVT density: reduced metal is "held-in" (less vocal-tract opening, less metal);
   // falsetto is the disengaged, thin and hollow way of singing. Curbing is always reduced.
@@ -293,7 +294,8 @@ export function renderMelody(notes: readonly Note[], opts: RenderOptions): Rende
   const y = new Float32Array(N);
   const st = new Float64Array(12);
   const co = new Float64Array(15);
-  const vsBase = SINGERS[opts.voice.singer].scale * (1 + 0.11 * (opts.voice.larynx / 100));
+  // The 3 kHz ring resonator is tuned once per render, from the song tone's larynx.
+  const vsBase = SINGERS[opts.voice.singer].scale * (1 + 0.11 * (tractOf(opts.songTone).larynx / 100));
   const ringC = resonatorCoefs(3000 * vsBase, 260, SR);
   let prev = 0,
     lp = 0,

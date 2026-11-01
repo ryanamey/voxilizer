@@ -17,10 +17,10 @@ import {
   stageOf,
   sungVowel,
   toneNotes,
+  tractOf,
   type CheckFix,
   type Note,
   type Tone,
-  type VoiceSettings,
 } from "@voxilizer/engine";
 import type { RenderedAudio, TakeInfo } from "@/audio/audio-engine";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useGritLabAudio } from "./audio-context";
+import { useAudio } from "@/audio/audio-context";
 import { ControlGroup, LabeledSlider, Segmented } from "./controls";
 import { ChecksList, DensityPicker, VOWEL_OPTIONS, VolumeSlider } from "./cvt-ui";
 import { hzToNoteName, recipeText, STAGE_INFO } from "./recipe";
@@ -36,7 +36,12 @@ import { Scopes } from "./scopes";
 import { useGritLab, type Preview } from "./store";
 
 /** Presets in the centre of their CVT mode. Pitches are for a male voice; female voices sing them higher. */
-const PRESETS: { name: string; tone: Tone; voice: Partial<VoiceSettings>; preview: Partial<Preview> }[] = [
+const PRESETS: {
+  name: string;
+  tone: Tone;
+  voice: Pick<Tone, "larynx" | "twang">;
+  preview: Partial<Preview>;
+}[] = [
   {
     name: "Clean shout",
     tone: { mode: "overdrive", density: "fuller", volume: 8, air: 0, effect: "none", amount: 0, ff: 0 },
@@ -102,12 +107,14 @@ function previewNotes(preview: Preview): Note[] {
 }
 
 export function ToneDesigner() {
-  const { engine, play, playSequence, stop, playing } = useGritLabAudio();
-  const tone = useGritLab((s) => s.song.tone);
-  const voice = useGritLab((s) => s.song.voice);
+  const { engine, play, playSequence, stop, playing } = useAudio();
+  const tone = useGritLab((s) => s.tone);
+  const singer = useGritLab((s) => s.singer);
+  const voice = useMemo(() => ({ singer }), [singer]);
+  const tract = tractOf(tone);
   const preview = useGritLab((s) => s.preview);
   const source = useGritLab((s) => s.source);
-  const { setTone, setVoice, setPreview, setSource } = useGritLab.getState();
+  const { setTone, setSinger, setPreview, setSource } = useGritLab.getState();
 
   const [audio, setAudio] = useState<RenderedAudio | null>(null);
   const [take, setTake] = useState<TakeInfo | null>(null);
@@ -127,9 +134,13 @@ export function ToneDesigner() {
   const render = useCallback(
     async (clean = false): Promise<RenderedAudio | null> => {
       const s = useGritLab.getState();
-      const t = clean ? { ...s.song.tone, ...CLEAN } : s.song.tone;
-      if (s.source === "mine") return takeRef.current ? engine.renderTake(t, s.song.voice, clean) : null;
-      return engine.renderMelody(previewNotes(s.preview), { tempo: 60, songTone: t, voice: s.song.voice });
+      const t = clean ? { ...s.tone, ...CLEAN } : s.tone;
+      if (s.source === "mine") return takeRef.current ? engine.renderTake(t, clean) : null;
+      return engine.renderMelody(previewNotes(s.preview), {
+        tempo: 60,
+        songTone: t,
+        voice: { singer: s.singer },
+      });
     },
     [engine],
   );
@@ -143,7 +154,7 @@ export function ToneDesigner() {
         .catch(() => undefined);
     }, 90);
     return () => clearTimeout(t);
-  }, [render, tone, voice, preview, source, take]);
+  }, [render, tone, singer, preview, source, take]);
 
   const playCurrent = useCallback(async () => {
     try {
@@ -323,9 +334,8 @@ export function ToneDesigner() {
                 size="sm"
                 className="rounded-full"
                 onClick={() => {
-                  const female = useGritLab.getState().song.voice.singer === "female";
-                  setTone(p.tone);
-                  setVoice(p.voice);
+                  const female = useGritLab.getState().singer === "female";
+                  setTone({ ...p.tone, ...p.voice });
                   setPreview({
                     ...p.preview,
                     pitch: Math.min(PITCH_MAX, (p.preview.pitch ?? 52) + (female ? FEMALE_OFFSET : 0)),
@@ -391,14 +401,14 @@ export function ToneDesigner() {
           <div className="flex flex-wrap gap-6">
             <Segmented
               label="Singer"
-              value={voice.singer}
+              value={singer}
               size="sm"
               options={[
                 { value: "female", label: "Female" },
                 { value: "male", label: "Male" },
               ]}
               onChange={(singer) => {
-                setVoice({ singer });
+                setSinger(singer);
                 committed();
               }}
             />
@@ -487,23 +497,23 @@ export function ToneDesigner() {
           <LabeledSlider
             id="larynx"
             label="Larynx height"
-            value={voice.larynx}
+            value={tract.larynx}
             min={-100}
             max={100}
-            display={voice.larynx === 0 ? "neutral" : `${voice.larynx > 0 ? "+" : ""}${voice.larynx}`}
+            display={tract.larynx === 0 ? "neutral" : `${tract.larynx > 0 ? "+" : ""}${tract.larynx}`}
             ends={["low · dark", "high · bright"]}
-            onChange={(larynx) => setVoice({ larynx })}
+            onChange={(larynx) => setTone({ larynx })}
             onCommit={committed}
           />
           <LabeledSlider
             id="twang"
             label="Twang"
-            value={voice.twang}
+            value={tract.twang}
             min={0}
             max={100}
-            display={voice.twang ? `+${voice.twang}%` : "necessary"}
+            display={tract.twang ? `+${tract.twang}%` : "necessary"}
             ends={["necessary twang", "distinct twang"]}
-            onChange={(twang) => setVoice({ twang })}
+            onChange={(twang) => setTone({ twang })}
             onCommit={committed}
           />
         </ControlGroup>

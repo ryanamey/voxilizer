@@ -8,13 +8,14 @@ that Grit Lab's rules follow. It carries the decisions and context that previous
 
 A web app for singers to **design their vocal tone before they sing it**, then train toward it healthily.
 
-- The singer writes a vocal line in a **piano roll** (no staff notation), gives each note a **vowel**
-  (the 11 CVT vowels), and sets the tone: CVT **mode** (Neutral, Curbing, Overdrive, Edge), **density**
-  (fuller, reduced, falsetto), **volume** 1–10, **effect**
-  (creak, rattle, growl, grunt) with an amount, **false-fold distortion** 0–100, and vocal-tract
-  settings (larynx height, twang, audible air in Neutral, female/male singer). `cvt.ts` checks every
-  note against CVT's rules and offers fixes.
-- The **song tone** applies to every note; selected notes can **override** it.
+- **Grit Lab** is for designing a tone: CVT **mode** (Neutral, Curbing, Overdrive, Edge), **density**
+  (fuller, reduced, falsetto), **volume** 1–10, **effect** (creak, rattle, growl, grunt) with an
+  amount, **false-fold distortion** 0–100, and vocal-tract settings (larynx height, twang, audible
+  air in Neutral). The singer hears it on any key and saves good ones to a **tone library**.
+- **Melody Studio** is for songs: a **piano roll** (no staff notation), a **vowel** per note (the 11
+  CVT vowels), a **song tone** picked from the library, and per-note tones. Songs keep a **copy** of
+  each library tone (with its `origin`) and offer an update when the library version changes.
+  `cvt.ts` checks every note against CVT's rules and offers fixes.
 - Playback is synthesised, so experimenting costs the singer **zero vocal effort**. This is the
   product's core reason to exist: singers otherwise burn hours of voice trying tones by trial and error.
 - Every note gets a **training stage** (0–4) and the song gets a **load map**: sung time, share with
@@ -42,8 +43,9 @@ a Claude Docs artifact owned by the founder). Key facts the code relies on:
 apps/web                Next.js 16 (App Router, Turbopack, Cache Components), React 19, Tailwind v4, shadcn/ui
   src/app/(marketing)/  public website
   src/app/(auth)/       sign-in, sign-up (Neon Auth), server actions
-  src/app/dashboard/    signed-in area; grit-lab/ and vocal-tuner/ are built
-  src/components/grit-lab/  the Grit Lab UI (Zustand store + zundo undo)
+  src/app/dashboard/    signed-in area: grit-lab/ (tone actions), melody-studio/ (song actions), vocal-tuner/
+  src/components/grit-lab/  Grit Lab: design store, tone designer, keyboard, tone library (library.ts)
+  src/components/melody-studio/  Melody Studio: song store, piano roll, song bar, tone picker
   src/components/vocal-tuner/  the Vocal Tuner (piano, live mic pitch, 2-second hold)
   src/lib/              env (Zod), auth, DAL (requireUser), songs repository
   src/db/               Drizzle schema + client; migrations in apps/web/drizzle/

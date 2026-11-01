@@ -9,6 +9,7 @@ import {
   VOLUME_LABEL,
   VOWELS,
   sungVowel,
+  tractOf,
   type Tone,
   type VoiceSettings,
 } from "@voxilizer/engine";
@@ -43,13 +44,14 @@ export function recipeText(
         )} Hz), ${SINGERS[voice.singer].label.toLowerCase()} voice, vowel ${vowelText(preview.vowel, tone, preview.pitch, voice)}`;
   const effect =
     tone.effect === "none" ? "Effect: none" : `Effect: ${EFFECTS[tone.effect].label} ${tone.amount}%`;
+  const tract = tractOf(tone);
   const larynx =
-    voice.larynx === 0 ? "neutral" : `${voice.larynx > 0 ? "raised" : "lowered"} ${Math.abs(voice.larynx)}%`;
+    tract.larynx === 0 ? "neutral" : `${tract.larynx > 0 ? "raised" : "lowered"} ${Math.abs(tract.larynx)}%`;
   return [
     carrier,
     effect,
     `Distortion: ${tone.ff ? `${tone.ff}%` : "off"}`,
-    `Larynx: ${larynx} · Twang above necessary: ${voice.twang}%`,
+    `Larynx: ${larynx} · Twang above necessary: ${tract.twang}%`,
   ].join("\n");
 }
 

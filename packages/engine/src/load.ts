@@ -1,5 +1,5 @@
 import { ARYEPIGLOTTIC_EFFECTS } from "./constants";
-import type { Note, Song, Tone, VoiceSettings } from "./song";
+import { tractOf, type Note, type Song, type Tone, type VoiceSettings } from "./song";
 import { STEPS_PER_BEAT } from "./song";
 
 /**
@@ -138,7 +138,7 @@ export function toneNotes(
       );
     if (tone.mode === "edge" && high && tone.ff > 60)
       notes.push("High, sharp and heavily distorted is the heaviest-load corner. Build it last.");
-    if (voice.larynx < -60 && tone.mode === "edge")
+    if (tractOf(tone).larynx < -60 && tone.mode === "edge")
       notes.push("Edge usually rides a raised larynx; a very low larynx pulls against it.");
   }
   notes.push(

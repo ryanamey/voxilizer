@@ -28,7 +28,7 @@ const tone = (t: Partial<Tone>): Tone => ({
 });
 const rules = (checks: { rule: string }[]) => checks.map((c) => c.rule);
 
-describe("song format v2", () => {
+describe("song format", () => {
   it("migrates a version 1 song", () => {
     const v1 = {
       version: 1,
@@ -50,12 +50,31 @@ describe("song format v2", () => {
       ],
     };
     const s = parseSong(v1);
-    expect(s.version).toBe(2);
-    expect(s.voice).toEqual({ singer: "female", larynx: 10, twang: 30 });
+    expect(s.version).toBe(3);
+    expect(s.voice).toEqual({ singer: "female" });
+    // Larynx and twang move from the song into every tone.
+    expect([s.tone.larynx, s.tone.twang]).toEqual([10, 30]);
+    expect([s.notes[1]!.tone!.larynx, s.notes[1]!.tone!.twang]).toEqual([10, 30]);
     expect(s.tone.air).toBe(25); // Neutral keeps the old air
     expect(s.notes[1]!.tone!.air).toBe(0); // Edge never gets air
     expect(s.notes[1]!.tone!.volume).toBe(8);
     expect(s.notes.map((n) => n.vowel)).toEqual(["AH", "EE"]);
+  });
+
+  it("migrates a version 2 song without changing how it sounds", () => {
+    const v2 = {
+      ...exampleSong(),
+      version: 2,
+      voice: { singer: "male", larynx: -20, twang: 45 },
+    };
+    const strip = (t: Tone | null) => t && { ...t, larynx: undefined, twang: undefined };
+    v2.tone = strip(v2.tone)!;
+    v2.notes = v2.notes.map((n) => ({ ...n, tone: strip(n.tone) }));
+    const s = parseSong(JSON.parse(JSON.stringify(v2)));
+    expect(s.version).toBe(3);
+    expect(s.voice).toEqual({ singer: "male" });
+    expect(s.tone.larynx).toBe(-20);
+    expect(s.notes.filter((n) => n.tone).every((n) => n.tone!.twang === 45)).toBe(true);
   });
 
   it("accepts the example song", () => {
@@ -120,9 +139,9 @@ describe("CVT checks", () => {
   });
 
   it("passes a tone in the centre of its mode", () => {
-    expect(
-      checkNote({ pitch: 64, vowel: "EH" }, tone({ mode: "edge", volume: 8 }), { ...male, twang: 50 }),
-    ).toEqual([]);
+    expect(checkNote({ pitch: 64, vowel: "EH" }, tone({ mode: "edge", volume: 8, twang: 50 }), male)).toEqual(
+      [],
+    );
   });
 
   it("checks a whole song and its mode changes", () => {
@@ -161,7 +180,7 @@ describe("current CVT edition", () => {
   it("allows medium Neutral in the middle part", () => {
     const n = tone({ mode: "neutral", density: "fuller", volume: 6 });
     expect(rules(checkNote({ pitch: 70, vowel: "AH" }, n, female))).toContain("neutral-medium-twang");
-    expect(rules(checkNote({ pitch: 70, vowel: "AH" }, n, { ...female, twang: 60 }))).toEqual([]);
+    expect(rules(checkNote({ pitch: 70, vowel: "AH" }, { ...n, twang: 60 }, female))).toEqual([]);
   });
 
   it("keeps density valid when the mode changes", () => {

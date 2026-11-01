@@ -13,6 +13,7 @@
 - [x] **3c. CVT current edition.** Density, falsetto, highway/byway transitions, updated vowels.
 - [x] **3e. Vocal Tuner.** 7-octave piano, live pitch from the mic, arrow to the target, 2 s hold.
 - [x] **3f. Grit Lab keyboard.** Play the designed tone on any key, with CVT warnings per key.
+- [x] **3g. Grit Lab / Melody Studio split.** Tone library, song tones from the library, format v3.
 - [ ] **3d. CVT colour and effects.** Five colour grades, the 10 main effects, onset, support.
 - [ ] **3b. Go live.** First live run on Neon, Vercel deployment, Sentry.
 - [ ] **4. Voice profile.** Record five vowels once; melody playback uses the singer's own vowel

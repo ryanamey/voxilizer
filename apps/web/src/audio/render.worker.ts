@@ -11,7 +11,6 @@ import {
   type RenderOptions,
   type Tone,
   type VoiceAnalysis,
-  type VoiceSettings,
 } from "@voxilizer/engine";
 
 export type WorkerRequest =
@@ -22,7 +21,6 @@ export type WorkerRequest =
       kind: "take-process";
       takeId: number;
       tone: Tone;
-      voice: Pick<VoiceSettings, "larynx" | "twang">;
       clean: boolean;
     };
 
@@ -94,9 +92,7 @@ ctx.onmessage = (e: MessageEvent<WorkerRequest>) => {
     } else {
       const take = takes.get(req.takeId);
       if (!take) throw new Error("Record or upload a take first.");
-      const out = req.clean
-        ? take.samples.slice()
-        : processVoice(take.samples, take.analysis, req.tone, req.voice);
+      const out = req.clean ? take.samples.slice() : processVoice(take.samples, take.analysis, req.tone);
       sendAudio(req.id, out, take.analysis.sampleRate, 0, t0);
     }
   } catch (err) {

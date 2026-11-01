@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PlayIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { PlayIcon, SlidersHorizontalIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import {
   analyzeLoad,
@@ -29,14 +29,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useGritLabAudio, usePlaybackPosition } from "./audio-context";
-import { LabeledSlider, Segmented } from "./controls";
-import { ChecksList, DensityPicker, SEVERITY_STYLE, VolumeSlider, VOWEL_OPTIONS } from "./cvt-ui";
+import { useAudio, usePlaybackPosition } from "@/audio/audio-context";
+import { LabeledSlider, Segmented } from "@/components/grit-lab/controls";
+import {
+  ChecksList,
+  DensityPicker,
+  SEVERITY_STYLE,
+  VolumeSlider,
+  VOWEL_OPTIONS,
+} from "@/components/grit-lab/cvt-ui";
 import { PianoRoll } from "./piano-roll";
-import { useGritLab } from "./store";
+import { useMelody } from "./store";
+import { toneLabel, useToneLibrary } from "@/components/grit-lab/library";
+import { useEditInGritLab } from "./song-tone-panel";
+import { TonePicker } from "./tone-picker";
 
 const STAGE_BG = ["bg-stage-clean", "bg-stage-clean", "bg-stage-2", "bg-stage-3", "bg-stage-4"] as const;
 const LENGTHS = [
@@ -54,13 +61,15 @@ function lengthLabel(steps: number) {
 }
 
 export function MelodyStudio() {
-  const { engine, play, stop, playing } = useGritLabAudio();
+  const { engine, play, stop, playing } = useAudio();
   const position = usePlaybackPosition();
-  const song = useGritLab((s) => s.song);
-  const selection = useGritLab((s) => s.selection);
-  const newVowel = useGritLab((s) => s.newVowel);
-  const newLength = useGritLab((s) => s.newLength);
-  const st = useGritLab.getState();
+  const song = useMelody((s) => s.song);
+  const selection = useMelody((s) => s.selection);
+  const newVowel = useMelody((s) => s.newVowel);
+  const newLength = useMelody((s) => s.newLength);
+  const st = useMelody.getState();
+  const library = useToneLibrary();
+  const editInGritLab = useEditInGritLab();
   const [stepSeconds, setStepSeconds] = useState(60 / song.tempo / 4);
   const [rendering, setRendering] = useState(false);
 
@@ -92,7 +101,7 @@ export function MelodyStudio() {
     if (!notes.length) return;
     setRendering(true);
     try {
-      const s = useGritLab.getState().song;
+      const s = useMelody.getState().song;
       const audio = await engine.renderMelody(notes, { tempo: s.tempo, songTone: s.tone, voice: s.voice });
       setStepSeconds(audio.secondsPerStep);
       await play(audio, kind);
@@ -116,11 +125,10 @@ export function MelodyStudio() {
     <section aria-labelledby="melody-heading" className="flex flex-col gap-5 rounded-xl border bg-card p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="melody-heading" className="text-xl font-bold tracking-tight">
-          Melody studio
+          Melody
         </h2>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Write the vocal line and give each note a vowel. The panel above sets the song tone; select notes to
-          override it.
+          Write the vocal line and give each note a vowel. Select notes to give them their own tone.
         </p>
       </div>
 
@@ -335,38 +343,51 @@ export function MelodyStudio() {
                 onChange={(v) => st.setSelectedVowel(v)}
               />
               {selected.length === 1 && first && <SungAs note={first} />}
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="follow-song"
-                  checked={following}
-                  onCheckedChange={(on) => st.setSelectedTone(on ? null : {})}
-                />
-                <Label htmlFor="follow-song" className="font-normal">
-                  Follow song tone
-                </Label>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-semibold tracking-wide uppercase">Tone</span>
+                <p className="text-sm">
+                  {following
+                    ? "Follows the song tone"
+                    : selected.every((n) => n.tone && JSON.stringify(n.tone) === JSON.stringify(first?.tone))
+                      ? toneLabel(first!.tone!, library.tones, library.status === "ready")
+                      : "Mixed tones"}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <TonePicker label="Choose tone" allowFollow onPick={(t) => st.setNotesTone(t)} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      editInGritLab(shownTone, { kind: "notes", ids: selection, songTitle: song.title })
+                    }
+                  >
+                    <SlidersHorizontalIcon /> Edit in Grit Lab
+                  </Button>
+                </div>
               </div>
-              <fieldset disabled={following} className={cn("flex flex-col gap-4", following && "opacity-50")}>
-                <legend className="sr-only">Note tone</legend>
+              <fieldset className="flex flex-col gap-4">
+                <legend className="mb-1 text-xs text-muted-foreground">
+                  Fine-tune {selected.length === 1 ? "this note" : "these notes"} (gives{" "}
+                  {selected.length === 1 ? "it its" : "them their"} own copy of the tone)
+                </legend>
                 <Segmented
                   label="Mode"
                   size="sm"
                   value={shownTone.mode}
-                  disabled={following}
                   options={MODE_IDS.map((m) => ({ value: m, label: MODES[m].label }))}
-                  onChange={(mode) => st.setSelectedTone({ mode })}
+                  onChange={(mode) => st.adjustSelectedTone({ mode })}
                 />
                 <DensityPicker
                   tone={shownTone}
                   size="sm"
-                  disabled={following}
-                  onChange={(density) => st.setSelectedTone({ density })}
+                  onChange={(density) => st.adjustSelectedTone({ density })}
                 />
                 <VolumeSlider
                   id="note-volume"
                   tone={shownTone}
                   value={shownTone.volume}
-                  disabled={following}
-                  onChange={(volume) => st.setSelectedTone({ volume })}
+                  onChange={(volume) => st.adjustSelectedTone({ volume })}
                 />
                 {shownTone.mode === "neutral" && (
                   <LabeledSlider
@@ -376,17 +397,15 @@ export function MelodyStudio() {
                     min={0}
                     max={100}
                     display={shownTone.air ? `${shownTone.air}%` : "none"}
-                    disabled={following}
-                    onChange={(air) => st.setSelectedTone({ air })}
+                    onChange={(air) => st.adjustSelectedTone({ air })}
                   />
                 )}
                 <Segmented
                   label="Effect"
                   size="sm"
                   value={shownTone.effect}
-                  disabled={following}
                   options={EFFECT_IDS.map((e) => ({ value: e, label: EFFECTS[e].label }))}
-                  onChange={(effect) => st.setSelectedTone({ effect })}
+                  onChange={(effect) => st.adjustSelectedTone({ effect })}
                 />
                 <LabeledSlider
                   id="note-amount"
@@ -395,8 +414,7 @@ export function MelodyStudio() {
                   min={0}
                   max={100}
                   display={`${shownTone.amount}%`}
-                  disabled={following}
-                  onChange={(amount) => st.setSelectedTone({ amount })}
+                  onChange={(amount) => st.adjustSelectedTone({ amount })}
                 />
                 <LabeledSlider
                   id="note-ff"
@@ -405,8 +423,7 @@ export function MelodyStudio() {
                   min={0}
                   max={100}
                   display={shownTone.ff ? `${shownTone.ff}%` : "off"}
-                  disabled={following}
-                  onChange={(ff) => st.setSelectedTone({ ff })}
+                  onChange={(ff) => st.adjustSelectedTone({ ff })}
                 />
               </fieldset>
               {selected.length === 1 && first && (
@@ -453,7 +470,7 @@ export function MelodyStudio() {
 
 /** Shows the vowel CVT asks you to sing when it differs from the written one. */
 function SungAs({ note }: { note: Note }) {
-  const song = useGritLab((s) => s.song);
+  const song = useMelody((s) => s.song);
   const tone = note.tone ?? song.tone;
   const sung = sungVowel(note.vowel, tone.mode, note.pitch, song.voice.singer);
   if (sung === note.vowel) return null;
