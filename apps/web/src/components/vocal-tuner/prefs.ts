@@ -7,12 +7,10 @@ import { TIMBRES, type TimbreId } from "./timbres";
 export interface SoundPrefs {
   timbre: TimbreId;
   singer: "female" | "male";
-  /** Hold the reference note so the singer can sing along (needs headphones). */
-  sustain: boolean;
 }
 
 const KEY = "voxilizer.tuner.sound";
-const DEFAULTS: SoundPrefs = { timbre: "clean", singer: "male", sustain: false };
+const DEFAULTS: SoundPrefs = { timbre: "clean", singer: "male" };
 const listeners = new Set<() => void>();
 let memory: SoundPrefs | null = null;
 let cachedRaw: string | null | undefined;
@@ -28,11 +26,10 @@ function read(): SoundPrefs {
   if (raw === cachedRaw) return cached;
   cachedRaw = raw;
   try {
-    const p = JSON.parse(raw ?? "{}") as Partial<Record<keyof SoundPrefs, unknown>>;
+    const p = JSON.parse(raw ?? "{}") as Partial<Record<keyof SoundPrefs, string>>;
     cached = {
-      timbre: typeof p.timbre === "string" && p.timbre in TIMBRES ? (p.timbre as TimbreId) : DEFAULTS.timbre,
+      timbre: p.timbre && p.timbre in TIMBRES ? (p.timbre as TimbreId) : DEFAULTS.timbre,
       singer: p.singer === "female" ? "female" : "male",
-      sustain: p.sustain === true,
     };
   } catch {
     cached = DEFAULTS;

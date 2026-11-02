@@ -15,7 +15,6 @@
 - [x] **3f. Grit Lab keyboard.** Play the designed tone on any key, with CVT warnings per key.
 - [x] **3g. Grit Lab / Melody Studio split.** Tone library, song tones from the library, format v3.
 - [x] **3h. Tuner reference sounds.** Clean, Piano, Guitar, Voice and Mix, all in tune and generated in the browser.
-- [x] **3i. Tuner sustain.** Sing along with a held reference, or from memory with a short one.
 - [ ] **3d. CVT colour and effects.** Five colour grades, the 10 main effects, onset, support.
 - [ ] **3b. Go live.** First live run on Neon, Vercel deployment, Sentry.
 - [ ] **4. Voice profile.** Record five vowels once; melody playback uses the singer's own vowel
