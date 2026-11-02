@@ -127,12 +127,13 @@ export function Piano({
               {...handlers?.(m)}
               className={cn(
                 "absolute top-0 flex flex-col items-center justify-end gap-1 rounded-b-md border border-neutral-400/70 pb-1.5 text-[10px] font-medium transition-colors duration-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                black ? "z-10" : "",
                 l.className ??
                   (black
                     ? "bg-neutral-900 text-neutral-300 hover:bg-neutral-700"
                     : "bg-white text-neutral-500 hover:bg-neutral-100"),
                 l.dark && "text-white",
+                // Black keys always sit above white keys, whatever colour a white key gets.
+                black ? "z-20" : "z-0",
               )}
               style={{
                 left: `${g.left(m)}%`,

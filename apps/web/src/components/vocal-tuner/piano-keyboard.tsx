@@ -32,15 +32,15 @@ export const PianoKeyboard = memo(function PianoKeyboard({
   function look(m: number): KeyLook {
     if (m === target) {
       const className = onTarget
-        ? "bg-stage-clean ring-4 ring-stage-clean/40 z-20"
+        ? "bg-stage-clean ring-4 ring-stage-clean/40"
         : sung === target
-          ? "bg-stage-clean/70 ring-2 ring-stage-4 z-20"
-          : "bg-stage-clean z-10";
+          ? "bg-stage-clean/70 ring-2 ring-stage-4"
+          : "bg-stage-clean";
       return { className, dark: true, pressed: true, state: "target", showName: true, description: "target" };
     }
     if (m === sung && wrong)
       return {
-        className: "bg-stage-4 z-10",
+        className: "bg-stage-4",
         dark: true,
         state: "wrong",
         showName: true,
