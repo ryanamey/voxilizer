@@ -386,6 +386,12 @@ add the production domain as a trusted domain.
   (`vocal-tuner/timbres.ts`, nothing to download, 4–46 ms per note, cached); tests check every
   timbre plays within 5 cents of the target (measured: under 1 cent). The mic ignores a reference
   note only while it is audible. The choice is remembered per browser (`prefs.ts`).
+- **Tuner sustain (2026-11-02):** a "Sustain (sing along)" switch, off by default. Off: a short
+  reference note (about 1 s), mic ignored while it is audible, then the singer finds the note from
+  memory. On: Clean and Voice loop seamlessly (a whole number of periods, 80 ms blend at the wrap;
+  tested in tune and click-free) until Stop, a new note, or lock-on; Piano rings with the pedal
+  (~8 s), Guitar lets the string ring (~6 s); the mic keeps listening, so a headphones reminder
+  shows. Piano string stiffness halved so pedal notes stay in tune.
 - **CI fix (2026-11-02):** the sign-in check in front of the dashboard (`src/proxy.ts`) now fails
   closed: if auth can't run (no environment variables, as on GitHub's CI machine, or Neon Auth
   unreachable) it redirects to sign-in instead of erroring. This was the failing e2e test on GitHub.

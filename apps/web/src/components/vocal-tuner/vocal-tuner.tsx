@@ -1,15 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2Icon, MicIcon, MicOffIcon, ShuffleIcon, Volume2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  HeadphonesIcon,
+  MicIcon,
+  MicOffIcon,
+  ShuffleIcon,
+  SquareIcon,
+  Volume2Icon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Segmented } from "@/components/grit-lab/controls";
 import { cn } from "@/lib/utils";
-import { listenToMic, playSamples, referenceContext, type MicListener } from "./audio";
+import { listenToMic, playNote, referenceContext, type MicListener, type PlayingNote } from "./audio";
 import { saveSoundPrefs, useSoundPrefs } from "./prefs";
-import { nextMix, renderTimbre, TIMBRES, type SoundId, type TimbreId } from "./timbres";
+import { nextMix, renderTimbre, TIMBRES, type RenderedNote, type SoundId, type TimbreId } from "./timbres";
 import { PianoKeyboard } from "./piano-keyboard";
 import { PitchTrail, type TrailPoint } from "./pitch-trail";
 import {
@@ -35,10 +43,13 @@ export function VocalTuner() {
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [state, setState] = useState<TunerState>(() => initialTuner(0, true));
-  const { timbre, singer } = useSoundPrefs();
+  const { timbre, singer, sustain } = useSoundPrefs();
   /** The timbre Mix chose for the current target. */
   const [mixSound, setMixSound] = useState<SoundId>("clean");
-  const sounds = useRef(new Map<string, Float32Array>());
+  const sounds = useRef(new Map<string, RenderedNote>());
+  /** The reference note now sounding, and whether it is a held one (shows Stop). */
+  const playingNote = useRef<PlayingNote | null>(null);
+  const [holding, setHolding] = useState(false);
   const sound: SoundId = timbre === "mix" ? mixSound : timbre;
 
   const mic = useRef<MicListener | null>(null);
@@ -57,23 +68,45 @@ export function VocalTuner() {
     trail.current = [];
   }, []);
 
+  const stopNote = useCallback(() => {
+    playingNote.current?.stop();
+    playingNote.current = null;
+    setHolding(false);
+  }, []);
+
   const hear = useCallback(
     (midi: number, which: SoundId = sound) => {
+      stopNote();
       const ctx = referenceContext(mic.current?.context);
-      const key = `${which}:${midi}:${singer}:${ctx.sampleRate}`;
-      let samples = sounds.current.get(key);
-      if (!samples) {
-        samples = renderTimbre(which, midi, ctx.sampleRate, singer);
-        sounds.current.set(key, samples);
+      const key = `${which}:${midi}:${singer}:${sustain}:${ctx.sampleRate}`;
+      let note = sounds.current.get(key);
+      if (!note) {
+        note = renderTimbre(which, midi, ctx.sampleRate, singer, sustain);
+        sounds.current.set(key, note);
         // Keep memory bounded: forget the oldest notes.
-        while (sounds.current.size > 48) sounds.current.delete(sounds.current.keys().next().value!);
+        while (sounds.current.size > 32) sounds.current.delete(sounds.current.keys().next().value!);
       }
-      const ms = playSamples(samples, ctx);
-      // Don't let the microphone hear the reference note and lock onto it.
-      mic.current?.muteUntil(performance.now() + ms + 150);
+      const playing = playNote(note, ctx);
+      playingNote.current = playing;
+      if (sustain) {
+        // Sing along: the microphone keeps listening (headphones keep the speaker out of it).
+        setHolding(true);
+        playing.onEnded(() => {
+          if (playingNote.current === playing) {
+            playingNote.current = null;
+            setHolding(false);
+          }
+        });
+      } else {
+        // Don't let the microphone hear the reference note and lock onto it.
+        mic.current?.muteUntil(performance.now() + playing.audibleMs + 150);
+      }
     },
-    [sound, singer],
+    [sound, singer, sustain, stopNote],
   );
+
+  // A held note stops when leaving the page (and, in the microphone loop, once the note is locked).
+  useEffect(() => () => playingNote.current?.stop(), []);
 
   const choose = useCallback(
     (midi: number) => {
@@ -89,6 +122,8 @@ export function VocalTuner() {
   );
 
   async function toggleMic() {
+    // A note playing on the old audio context would be cut off: stop it cleanly first.
+    stopNote();
     if (mic.current) {
       mic.current.stop();
       mic.current = null;
@@ -101,6 +136,8 @@ export function VocalTuner() {
       mic.current = await listenToMic((midi, _level, now) => {
         const { target: t, tol } = live.current;
         const next = tunerStep(live.current.state, midi, now, t, tol);
+        // Locked on: a held reference note has done its job.
+        if (next.status === "locked" && live.current.state.status !== "locked") stopNote();
         live.current.state = next;
         setState(next);
         const pts = trail.current;
@@ -149,10 +186,21 @@ export function VocalTuner() {
           {listening ? <MicOffIcon /> : <MicIcon />}
           {listening ? "Stop listening" : "Start listening"}
         </Button>
-        <Button variant="outline" onClick={() => target !== null && hear(target)} disabled={target === null}>
-          <Volume2Icon />
-          Hear {target !== null ? keyName(target) : "the note"}
-        </Button>
+        {holding ? (
+          <Button variant="outline" onClick={stopNote}>
+            <SquareIcon />
+            Stop {target !== null ? keyName(target) : "the note"}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => target !== null && hear(target)}
+            disabled={target === null}
+          >
+            <Volume2Icon />
+            Hear {target !== null ? keyName(target) : "the note"}
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() =>
@@ -200,16 +248,40 @@ export function VocalTuner() {
             }}
           />
         )}
+        <div className="flex items-center gap-2 pb-2">
+          <Switch
+            id="sustain"
+            checked={sustain}
+            onCheckedChange={(on) => {
+              stopNote();
+              saveSoundPrefs({ sustain: on });
+            }}
+          />
+          <Label htmlFor="sustain" className="font-normal">
+            Sustain (sing along)
+          </Label>
+        </div>
         {timbre === "mix" && (
           <p className="pb-2 text-sm text-muted-foreground" aria-live="polite">
             This note: <span className="font-medium text-foreground">{TIMBRES[mixSound].label}</span>
           </p>
         )}
       </div>
-      <p className="-mt-3 text-xs text-muted-foreground">
-        Changing the sound trains your ear to hear the pitch itself, not the colour around it. Piano and
-        guitar fade, so hold the note in your head; Clean and Voice keep sounding so you can sing along.
-      </p>
+      {sustain ? (
+        <p className="-mt-3 flex items-start gap-2 rounded-md border border-stage-3/50 bg-stage-3/10 px-3 py-2 text-xs">
+          <HeadphonesIcon className="mt-px size-4 shrink-0 text-stage-3" />
+          <span>
+            Use headphones. The note keeps sounding while you sing (Clean and Voice until you stop it or lock
+            on; Piano and Guitar ring and fade), and the microphone keeps listening. Through speakers it would
+            hear the note instead of you.
+          </span>
+        </p>
+      ) : (
+        <p className="-mt-3 text-xs text-muted-foreground">
+          The note plays briefly, then you find it from memory. Changing the sound trains your ear to hear the
+          pitch itself, not the colour around it. Turn on Sustain to sing along with it instead.
+        </p>
+      )}
       {micError && <p className="text-sm text-destructive">{micError}</p>}
 
       <PianoKeyboard

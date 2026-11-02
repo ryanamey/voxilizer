@@ -1,4 +1,5 @@
 import { detectPitch, hzToMidi } from "@voxilizer/engine";
+import type { RenderedNote } from "./timbres";
 
 export interface MicListener {
   stop: () => void;
@@ -61,21 +62,53 @@ export function referenceContext(context?: AudioContext): AudioContext {
   return context ?? (refContext ??= new AudioContext());
 }
 
-/**
- * Play a rendered reference note. Returns how long it stays loud enough for the microphone to
- * pick up (ms): a fading piano or guitar note stops counting once it has died away.
- */
-export function playSamples(samples: Float32Array, context: AudioContext): number {
+export interface PlayingNote {
+  /** How long the note stays loud enough for the microphone to pick up (ms); Infinity if it loops. */
+  audibleMs: number;
+  /** Fade the note out (about 0.12 s) and stop it. Safe to call more than once. */
+  stop: () => void;
+  /** Called once when the note has finished or been stopped. */
+  onEnded: (fn: () => void) => void;
+}
+
+/** Play a rendered reference note: once, or looping until stopped. */
+export function playNote(note: RenderedNote, context: AudioContext): PlayingNote {
   void context.resume();
+  const { samples, loop } = note;
   const buf = context.createBuffer(1, samples.length, context.sampleRate);
   buf.copyToChannel(samples as Float32Array<ArrayBuffer>, 0);
   const src = context.createBufferSource();
   src.buffer = buf;
-  src.connect(context.destination);
+  if (loop) {
+    src.loop = true;
+    src.loopStart = loop.start / context.sampleRate;
+    src.loopEnd = loop.end / context.sampleRate;
+  }
+  const gain = context.createGain();
+  src.connect(gain).connect(context.destination);
   src.start(context.currentTime + 0.01);
-  let peak = 0;
-  for (const v of samples) peak = Math.max(peak, Math.abs(v));
-  let last = samples.length - 1;
-  while (last > 0 && Math.abs(samples[last]!) < peak * 0.03) last--; // about -30 dB
-  return ((last + 1) / context.sampleRate) * 1000 + 10;
+
+  let audibleMs = Infinity;
+  if (!loop) {
+    let peak = 0;
+    for (const v of samples) peak = Math.max(peak, Math.abs(v));
+    let last = samples.length - 1;
+    while (last > 0 && Math.abs(samples[last]!) < peak * 0.03) last--; // about -30 dB
+    audibleMs = ((last + 1) / context.sampleRate) * 1000 + 10;
+  }
+  let stopped = false;
+  const ended: (() => void)[] = [];
+  src.onended = () => ended.splice(0).forEach((fn) => fn());
+  return {
+    audibleMs,
+    stop: () => {
+      if (stopped) return;
+      stopped = true;
+      const t = context.currentTime;
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.12);
+      src.stop(t + 0.13);
+    },
+    onEnded: (fn) => ended.push(fn),
+  };
 }
