@@ -379,6 +379,9 @@ add the production domain as a trusted domain.
   singing range from deep bass to high soprano, keys sized in % so it fills its container and
   scrolls only on narrow screens). The Vocal Tuner and the Grit Lab keyboard both use it; the tuner
   no longer shows C1–B7. A note sung outside C2–C6 points from the nearest edge.
+- **CI fix (2026-11-02):** the sign-in check in front of the dashboard (`src/proxy.ts`) now fails
+  closed: if auth can't run (no environment variables, as on GitHub's CI machine, or Neon Auth
+  unreachable) it redirects to sign-in instead of erroring. This was the failing e2e test on GitHub.
 - Tests: 43 engine tests, 21 web unit tests, 3 Playwright tests (+1 full auth flow behind `E2E_AUTH=1`).
 - Verified in headless Chromium: pages render in light and dark, the dashboard redirects to sign-in,
   form validation works, the piano roll adds / deletes / undoes notes, playback runs.
