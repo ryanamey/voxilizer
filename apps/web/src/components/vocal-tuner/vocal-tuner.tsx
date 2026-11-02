@@ -7,7 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Segmented } from "@/components/grit-lab/controls";
 import { cn } from "@/lib/utils";
-import { listenToMic, playReference, type MicListener } from "./audio";
+import { listenToMic, playSamples, referenceContext, type MicListener } from "./audio";
+import { saveSoundPrefs, useSoundPrefs } from "./prefs";
+import { nextMix, renderTimbre, TIMBRES, type SoundId, type TimbreId } from "./timbres";
 import { PianoKeyboard } from "./piano-keyboard";
 import { PitchTrail, type TrailPoint } from "./pitch-trail";
 import {
@@ -26,7 +28,6 @@ import {
 
 /** Random practice notes stay in a comfortable singing range (E2–C6). */
 const RANDOM_RANGE = [40, 84] as const;
-
 export function VocalTuner() {
   const [target, setTarget] = useState<number | null>(60);
   const [tolerance, setTolerance] = useState<ToleranceId>("normal");
@@ -34,6 +35,11 @@ export function VocalTuner() {
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [state, setState] = useState<TunerState>(() => initialTuner(0, true));
+  const { timbre, singer } = useSoundPrefs();
+  /** The timbre Mix chose for the current target. */
+  const [mixSound, setMixSound] = useState<SoundId>("clean");
+  const sounds = useRef(new Map<string, Float32Array>());
+  const sound: SoundId = timbre === "mix" ? mixSound : timbre;
 
   const mic = useRef<MicListener | null>(null);
   const trail = useRef<TrailPoint[]>([]);
@@ -51,20 +57,35 @@ export function VocalTuner() {
     trail.current = [];
   }, []);
 
-  const hear = useCallback((midi: number) => {
-    const ms = playReference(midi, mic.current?.context);
-    // Don't let the microphone hear the reference note and lock onto it.
-    mic.current?.muteUntil(performance.now() + ms + 150);
-  }, []);
+  const hear = useCallback(
+    (midi: number, which: SoundId = sound) => {
+      const ctx = referenceContext(mic.current?.context);
+      const key = `${which}:${midi}:${singer}:${ctx.sampleRate}`;
+      let samples = sounds.current.get(key);
+      if (!samples) {
+        samples = renderTimbre(which, midi, ctx.sampleRate, singer);
+        sounds.current.set(key, samples);
+        // Keep memory bounded: forget the oldest notes.
+        while (sounds.current.size > 48) sounds.current.delete(sounds.current.keys().next().value!);
+      }
+      const ms = playSamples(samples, ctx);
+      // Don't let the microphone hear the reference note and lock onto it.
+      mic.current?.muteUntil(performance.now() + ms + 150);
+    },
+    [sound, singer],
+  );
 
   const choose = useCallback(
     (midi: number) => {
       const t = Math.max(KEY_MIN, Math.min(KEY_MAX, midi));
+      // Mix: every new target gets a different timbre.
+      const which = timbre === "mix" ? nextMix(mixSound) : sound;
+      if (timbre === "mix") setMixSound(which);
       setTarget(t);
       reset(t);
-      if (playOnSelect) hear(t);
+      if (playOnSelect) hear(t, which);
     },
-    [hear, playOnSelect, reset],
+    [hear, playOnSelect, reset, timbre, mixSound, sound],
   );
 
   async function toggleMic() {
@@ -148,6 +169,47 @@ export function VocalTuner() {
           </Label>
         </div>
       </div>
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <Segmented
+          label="Reference sound"
+          size="sm"
+          value={timbre}
+          options={(Object.keys(TIMBRES) as TimbreId[]).map((id) => ({
+            value: id,
+            label: TIMBRES[id].label,
+            hint: TIMBRES[id].hint,
+          }))}
+          onChange={(id) => {
+            saveSoundPrefs({ timbre: id });
+            const which = id === "mix" ? nextMix(sound) : id;
+            if (id === "mix") setMixSound(which);
+            if (target !== null) hear(target, which);
+          }}
+        />
+        {(timbre === "voice" || timbre === "mix") && (
+          <Segmented
+            label="Voice"
+            size="sm"
+            value={singer}
+            options={[
+              { value: "female", label: "Female" },
+              { value: "male", label: "Male" },
+            ]}
+            onChange={(s) => {
+              saveSoundPrefs({ singer: s });
+            }}
+          />
+        )}
+        {timbre === "mix" && (
+          <p className="pb-2 text-sm text-muted-foreground" aria-live="polite">
+            This note: <span className="font-medium text-foreground">{TIMBRES[mixSound].label}</span>
+          </p>
+        )}
+      </div>
+      <p className="-mt-3 text-xs text-muted-foreground">
+        Changing the sound trains your ear to hear the pitch itself, not the colour around it. Piano and
+        guitar fade, so hold the note in your head; Clean and Voice keep sounding so you can sing along.
+      </p>
       {micError && <p className="text-sm text-destructive">{micError}</p>}
 
       <PianoKeyboard

@@ -56,27 +56,26 @@ export async function listenToMic(
 
 let refContext: AudioContext | null = null;
 
-/** Play a soft, piano-like reference note. Returns its length in ms. */
-export function playReference(midi: number, context?: AudioContext): number {
-  const ctx = context ?? (refContext ??= new AudioContext());
-  void ctx.resume();
-  const hz = 440 * Math.pow(2, (midi - 69) / 12);
-  const t0 = ctx.currentTime + 0.02;
-  const dur = 1.4;
-  const out = ctx.createGain();
-  out.gain.setValueAtTime(0, t0);
-  out.gain.linearRampToValueAtTime(0.25, t0 + 0.01);
-  out.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  out.connect(ctx.destination);
-  [1, 0.45, 0.2, 0.1].forEach((amp, i) => {
-    if (hz * (i + 1) > ctx.sampleRate / 2) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.frequency.value = hz * (i + 1);
-    g.gain.value = amp;
-    o.connect(g).connect(out);
-    o.start(t0);
-    o.stop(t0 + dur);
-  });
-  return dur * 1000;
+/** The audio context reference notes play on: the microphone's while listening, else a shared one. */
+export function referenceContext(context?: AudioContext): AudioContext {
+  return context ?? (refContext ??= new AudioContext());
+}
+
+/**
+ * Play a rendered reference note. Returns how long it stays loud enough for the microphone to
+ * pick up (ms): a fading piano or guitar note stops counting once it has died away.
+ */
+export function playSamples(samples: Float32Array, context: AudioContext): number {
+  void context.resume();
+  const buf = context.createBuffer(1, samples.length, context.sampleRate);
+  buf.copyToChannel(samples as Float32Array<ArrayBuffer>, 0);
+  const src = context.createBufferSource();
+  src.buffer = buf;
+  src.connect(context.destination);
+  src.start(context.currentTime + 0.01);
+  let peak = 0;
+  for (const v of samples) peak = Math.max(peak, Math.abs(v));
+  let last = samples.length - 1;
+  while (last > 0 && Math.abs(samples[last]!) < peak * 0.03) last--; // about -30 dB
+  return ((last + 1) / context.sampleRate) * 1000 + 10;
 }

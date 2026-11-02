@@ -171,34 +171,35 @@ voice, soft high note, pain); two weeks of hoarseness or any pain → referral s
 
 ## 4. Decisions log
 
-| Date       | Decision                                                                                      | Why                                                                                                                 |
-| ---------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-27 | Research first, then an app with a step-by-step path                                          | Founder's original goal: a scientific, healthy approach to all distortions                                          |
-| 2026-10-27 | Add a sound designer with handles                                                             | Lets singers hear a target tone without singing                                                                     |
-| 2026-10-27 | "My voice" mode (record a take, add effects via LPC) prototyped                               | Make previews sound like the user; kept as a later feature                                                          |
-| 2026-10-28 | Core workflow = design the song's tone before singing it                                      | Solves the founder's real problem: trial-and-error that burns the voice                                             |
-| 2026-10-28 | Notation input with a vowel per note instead of lyrics                                        | No vocal effort at all; precise per-note control                                                                    |
-| 2026-10-28 | **Piano roll, not staff**                                                                     | Easier and more practical (founder confirmed)                                                                       |
-| 2026-10-28 | Planned: one-time **voice profile** (5 vowels)                                                | So synthesised playback sounds roughly like the singer                                                              |
-| 2026-10-28 | Stack: Next.js, shadcn, Neon + Better Auth, Vercel, Sentry, Zod + Drizzle, Zustand            | Founder's preference; modern and well supported                                                                     |
-| 2026-10-28 | Audio: Web Audio + AudioWorklet, Web Worker rendering, versioned Zod song format              | Standard, robust browser audio architecture                                                                         |
-| 2026-10-28 | **Engine in TypeScript first, Rust/WASM later**                                               | Two-person team; founder can own TypeScript; port only when live feedback/native apps/plugins need it               |
-| 2026-10-28 | Add other tools only when a step needs them                                                   | Every tool is maintenance for a tiny team                                                                           |
-| 2026-10-28 | Name: **Voxilizer** (working name)                                                            | Coined, all domains free, no direct conflict found                                                                  |
-| 2026-10-28 | Repo `ryanamey/voxilizer`, pnpm workspace `apps/web` + `packages/engine`                      | Simple monorepo; engine isolated for testing and future porting                                                     |
-| 2026-10-28 | **Neon Managed Better Auth** (Neon Auth) instead of self-hosted Better Auth                   | Less auth code for a two-person team; users still live in our Neon database (`neon_auth` schema)                    |
-| 2026-10-28 | One Neon project, branches `production` and `development`                                     | Standard Neon setup; each branch has its own database, Auth URL and users                                           |
-| 2026-10-28 | Website + client portal (sign-in/up) + dashboard; Grit Lab is the first section               | Founder's spec for the first full build                                                                             |
-| 2026-10-28 | Songs saved to the account in Postgres (JSON column, versioned schema)                        | Melodies persist across devices; schema validated with Zod on every save and load                                   |
-| 2026-10-28 | **For now the app is for the founder's own voice; CVT is the method.** Other methods later    | Founder's call; personal use makes CVT licensing a later question                                                   |
-| 2026-10-28 | Song format v2: per-tone CVT volume 1–10, Neutral-only air, female/male singer, 11 CVT vowels | CVT's rules depend on volume, sex-specific pitch limits and exact vowels                                            |
-| 2026-10-28 | CVT rules engine (`packages/engine/src/cvt.ts`) checks every note, with one-click fixes       | 95% of problems are mode misuse (CVT); designs should be singable in the centre of the mode                         |
-| 2026-10-28 | Synth modes calibrated against the CVT Sound Library (H1–H2, spectral tilt, 3 kHz ring)       | The synth should sound like the modes it names                                                                      |
-| 2026-10-28 | Follow the current CVT edition over the 2012 book: density, falsetto, Highway/Byway           | The founder supplied the app's "Updates since 2012" chapter; the app is the living source                           |
-| 2026-11-01 | Vocal Tuner: piano-based pitch trainer, detection in the pure engine (McLeod NSDF)            | Founder's request; pitch accuracy underlies every mode and effect; pure detector is testable and ports to WASM      |
-| 2026-11-01 | Codex only connects GitHub, Vercel and Neon (push, deploy, migrate); Claude does all coding   | Founder's call: one agent owns the code, so changes don't collide                                                   |
-| 2026-11-01 | Split Grit Lab (tone design + library) from Melody Studio (songs); songs copy library tones   | Founder's call; designing a sound and writing music are different jobs; copies mean old songs never change silently |
-| 2026-11-01 | Song format v3: larynx and twang per tone, singer per song                                    | A saved tone must sound the same in Grit Lab and in any song                                                        |
+| Date       | Decision                                                                                      | Why                                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-27 | Research first, then an app with a step-by-step path                                          | Founder's original goal: a scientific, healthy approach to all distortions                                              |
+| 2026-10-27 | Add a sound designer with handles                                                             | Lets singers hear a target tone without singing                                                                         |
+| 2026-10-27 | "My voice" mode (record a take, add effects via LPC) prototyped                               | Make previews sound like the user; kept as a later feature                                                              |
+| 2026-10-28 | Core workflow = design the song's tone before singing it                                      | Solves the founder's real problem: trial-and-error that burns the voice                                                 |
+| 2026-10-28 | Notation input with a vowel per note instead of lyrics                                        | No vocal effort at all; precise per-note control                                                                        |
+| 2026-10-28 | **Piano roll, not staff**                                                                     | Easier and more practical (founder confirmed)                                                                           |
+| 2026-10-28 | Planned: one-time **voice profile** (5 vowels)                                                | So synthesised playback sounds roughly like the singer                                                                  |
+| 2026-10-28 | Stack: Next.js, shadcn, Neon + Better Auth, Vercel, Sentry, Zod + Drizzle, Zustand            | Founder's preference; modern and well supported                                                                         |
+| 2026-10-28 | Audio: Web Audio + AudioWorklet, Web Worker rendering, versioned Zod song format              | Standard, robust browser audio architecture                                                                             |
+| 2026-10-28 | **Engine in TypeScript first, Rust/WASM later**                                               | Two-person team; founder can own TypeScript; port only when live feedback/native apps/plugins need it                   |
+| 2026-10-28 | Add other tools only when a step needs them                                                   | Every tool is maintenance for a tiny team                                                                               |
+| 2026-10-28 | Name: **Voxilizer** (working name)                                                            | Coined, all domains free, no direct conflict found                                                                      |
+| 2026-10-28 | Repo `ryanamey/voxilizer`, pnpm workspace `apps/web` + `packages/engine`                      | Simple monorepo; engine isolated for testing and future porting                                                         |
+| 2026-10-28 | **Neon Managed Better Auth** (Neon Auth) instead of self-hosted Better Auth                   | Less auth code for a two-person team; users still live in our Neon database (`neon_auth` schema)                        |
+| 2026-10-28 | One Neon project, branches `production` and `development`                                     | Standard Neon setup; each branch has its own database, Auth URL and users                                               |
+| 2026-10-28 | Website + client portal (sign-in/up) + dashboard; Grit Lab is the first section               | Founder's spec for the first full build                                                                                 |
+| 2026-10-28 | Songs saved to the account in Postgres (JSON column, versioned schema)                        | Melodies persist across devices; schema validated with Zod on every save and load                                       |
+| 2026-10-28 | **For now the app is for the founder's own voice; CVT is the method.** Other methods later    | Founder's call; personal use makes CVT licensing a later question                                                       |
+| 2026-10-28 | Song format v2: per-tone CVT volume 1–10, Neutral-only air, female/male singer, 11 CVT vowels | CVT's rules depend on volume, sex-specific pitch limits and exact vowels                                                |
+| 2026-10-28 | CVT rules engine (`packages/engine/src/cvt.ts`) checks every note, with one-click fixes       | 95% of problems are mode misuse (CVT); designs should be singable in the centre of the mode                             |
+| 2026-10-28 | Synth modes calibrated against the CVT Sound Library (H1–H2, spectral tilt, 3 kHz ring)       | The synth should sound like the modes it names                                                                          |
+| 2026-10-28 | Follow the current CVT edition over the 2012 book: density, falsetto, Highway/Byway           | The founder supplied the app's "Updates since 2012" chapter; the app is the living source                               |
+| 2026-11-01 | Vocal Tuner: piano-based pitch trainer, detection in the pure engine (McLeod NSDF)            | Founder's request; pitch accuracy underlies every mode and effect; pure detector is testable and ports to WASM          |
+| 2026-11-01 | Codex only connects GitHub, Vercel and Neon (push, deploy, migrate); Claude does all coding   | Founder's call: one agent owns the code, so changes don't collide                                                       |
+| 2026-11-01 | Split Grit Lab (tone design + library) from Melody Studio (songs); songs copy library tones   | Founder's call; designing a sound and writing music are different jobs; copies mean old songs never change silently     |
+| 2026-11-01 | Song format v3: larynx and twang per tone, singer per song                                    | A saved tone must sound the same in Grit Lab and in any song                                                            |
+| 2026-11-02 | Tuner reference timbres: Clean, Piano, Guitar, Voice, Mix (guitar instead of synth)           | Singers drift when timbre changes; practising across timbres trains pitch, not colour; guitar is what singers sing with |
 
 **Names considered and rejected:** VoxDesign (voxdesign.com taken; "Vox" overlaps the VOX amp brand),
 VocalDesign (Roland sells "Vocal Designer"), VoxShape, VoxSketch, VoxPalette, Raspwell, Supravox,
@@ -379,6 +380,12 @@ add the production domain as a trusted domain.
   singing range from deep bass to high soprano, keys sized in % so it fills its container and
   scrolls only on narrow screens). The Vocal Tuner and the Grit Lab keyboard both use it; the tuner
   no longer shows C1–B7. A note sung outside C2–C6 points from the nearest edge.
+- **Tuner reference sounds (2026-11-02):** "Reference sound" buttons: Clean (held), Piano (struck,
+  fades), Guitar (plucked, fades), Voice (the engine's sung AH, female/male, held) and Mix (a
+  different one for each new target, never the same twice). All generated in the browser
+  (`vocal-tuner/timbres.ts`, nothing to download, 4–46 ms per note, cached); tests check every
+  timbre plays within 5 cents of the target (measured: under 1 cent). The mic ignores a reference
+  note only while it is audible. The choice is remembered per browser (`prefs.ts`).
 - **CI fix (2026-11-02):** the sign-in check in front of the dashboard (`src/proxy.ts`) now fails
   closed: if auth can't run (no environment variables, as on GitHub's CI machine, or Neon Auth
   unreachable) it redirects to sign-in instead of erroring. This was the failing e2e test on GitHub.
