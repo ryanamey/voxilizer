@@ -11,15 +11,12 @@ import {
   type VoiceSettings,
 } from "@voxilizer/engine";
 import type { RenderedAudio } from "@/audio/audio-engine";
-import { isBlack, keyName } from "@/components/vocal-tuner/tuner";
+import { Piano, PIANO_HIGH, PIANO_LOW } from "@/components/piano/piano";
 import { cn } from "@/lib/utils";
 import { useAudio } from "@/audio/audio-context";
 import { useGritLab } from "./store";
 
-const WHITE_W = 28;
-const BLACK_W = 18;
-const KEYS = Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => PITCH_MIN + i);
-const WIDTH = KEYS.filter((k) => !isBlack(k)).length * WHITE_W;
+const KEYS = Array.from({ length: PIANO_HIGH - PIANO_LOW + 1 }, (_, i) => PIANO_LOW + i);
 /** How long each key sustains when held. */
 const NOTE_SECONDS = 3;
 /** Keys rendered ahead of time, around the preview note; the rest render on first press. */
@@ -28,12 +25,6 @@ const CACHE_LIMIT = 40;
 
 /** Computer keys, one octave and a bit: A W S E D F T G Y H U J K O L P ; */
 const COMPUTER_KEYS = ["a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j", "k", "o", "l", "p", ";"];
-
-function keyX(midi: number): number {
-  let whites = 0;
-  for (let m = PITCH_MIN; m < midi; m++) if (!isBlack(m)) whites++;
-  return isBlack(midi) ? whites * WHITE_W - BLACK_W / 2 : whites * WHITE_W;
-}
 
 const signature = (tone: Tone, voice: VoiceSettings, vowel: Note["vowel"]) =>
   JSON.stringify([tone, voice, vowel]);
@@ -57,7 +48,6 @@ export function ToneKeyboard() {
   const cache = useRef(new Map<number, Promise<RenderedAudio>>());
   const sig = signature(tone, voice, vowel);
   const pressId = useRef(0);
-  const scroller = useRef<HTMLDivElement>(null);
 
   const renderKey = useCallback(
     (pitch: number): Promise<RenderedAudio> => {
@@ -153,15 +143,6 @@ export function ToneKeyboard() {
     };
   }, [octave, noteOn, noteOff]);
 
-  // Keep the computer-key octave in view.
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const x = keyX(Math.max(PITCH_MIN, octave));
-    if (x < el.scrollLeft || x + 7 * WHITE_W > el.scrollLeft + el.clientWidth)
-      el.scrollTo({ left: x - 2 * WHITE_W, behavior: "smooth" });
-  }, [octave]);
-
   // CVT check for every key: where this tone sits outside its mode's healthy range.
   const flags = useMemo(() => {
     const out = new Map<number, "avoid" | "caution">();
@@ -182,88 +163,75 @@ export function ToneKeyboard() {
           Every key sings the tone you designed above, so you can hear it across your whole range.
         </p>
       </div>
-      <div
-        ref={scroller}
-        className="overflow-x-auto rounded-xl border bg-muted/40 p-3 select-none"
-        onPointerUp={() => {
-          if (pointerDown.current) {
-            pointerDown.current = false;
-            noteOff();
-          }
+      <Piano
+        label="Keyboard: each key plays your designed tone at that pitch"
+        reveal={down ?? octave}
+        frame={{
+          onPointerUp: () => {
+            if (pointerDown.current) {
+              pointerDown.current = false;
+              noteOff();
+            }
+          },
+          onPointerLeave: () => {
+            if (pointerDown.current) {
+              pointerDown.current = false;
+              noteOff();
+            }
+          },
         }}
-        onPointerLeave={() => {
-          if (pointerDown.current) {
-            pointerDown.current = false;
-            noteOff();
-          }
+        look={(m) => {
+          const flag = flags.get(m);
+          return {
+            pressed: down === m,
+            description: flag ? `${flag} for this tone` : undefined,
+            ...(down === m && { className: "bg-primary text-primary-foreground hover:bg-primary" }),
+          };
         }}
-      >
-        <div
-          className="relative mx-auto touch-none"
-          style={{ width: WIDTH, height: 150 }}
-          role="group"
-          aria-label="Keyboard: each key plays your designed tone at that pitch"
-        >
-          {KEYS.map((m) => {
-            const black = isBlack(m);
-            const flag = flags.get(m);
-            const comp = m - octave;
-            const letter =
-              comp >= 0 && comp < COMPUTER_KEYS.length ? COMPUTER_KEYS[comp]!.toUpperCase() : null;
-            return (
-              <button
-                key={m}
-                type="button"
-                aria-label={`${keyName(m)}${flag ? `, ${flag === "avoid" ? "avoid" : "caution"} for this tone` : ""}`}
-                aria-pressed={down === m}
-                data-key={m}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  // Touch captures the pointer on the first key; release it so dragging reaches the others.
-                  if (e.currentTarget.hasPointerCapture(e.pointerId))
-                    e.currentTarget.releasePointerCapture(e.pointerId);
-                  pointerDown.current = true;
-                  void noteOn(m);
-                }}
-                onPointerEnter={() => {
-                  // Glide: drag across the keys with the button held.
-                  if (pointerDown.current && down !== m) void noteOn(m);
-                }}
-                onKeyDown={(e) => {
-                  if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    void noteOn(m);
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation();
-                    noteOff();
-                  }
-                }}
-                className={cn(
-                  "absolute top-0 flex flex-col items-center justify-end gap-1 rounded-b-md border border-neutral-400/70 pb-1.5 text-[10px] font-medium transition-colors duration-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                  black
-                    ? "z-10 bg-neutral-900 text-neutral-300 hover:bg-neutral-700"
-                    : "bg-white text-neutral-500 hover:bg-neutral-100",
-                  down === m && "bg-primary text-primary-foreground hover:bg-primary",
-                )}
-                style={{ left: keyX(m), width: black ? BLACK_W : WHITE_W, height: black ? 92 : 150 }}
-              >
-                {flag && (
-                  <span
-                    className={cn("size-2 rounded-full", flag === "avoid" ? "bg-stage-4" : "bg-stage-3")}
-                    aria-hidden
-                  />
-                )}
-                {letter && <span className="opacity-60">{letter}</span>}
-                {!black && m % 12 === 0 && <span>{keyName(m)}</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        content={(m) => {
+          const flag = flags.get(m);
+          const comp = m - octave;
+          const letter = comp >= 0 && comp < COMPUTER_KEYS.length ? COMPUTER_KEYS[comp]!.toUpperCase() : null;
+          return (
+            <>
+              {flag && (
+                <span
+                  className={cn("size-2 rounded-full", flag === "avoid" ? "bg-stage-4" : "bg-stage-3")}
+                  aria-hidden
+                />
+              )}
+              {letter && <span className="opacity-60">{letter}</span>}
+            </>
+          );
+        }}
+        handlers={(m) => ({
+          onPointerDown: (e) => {
+            e.preventDefault();
+            // Touch captures the pointer on the first key; release it so dragging reaches the others.
+            if (e.currentTarget.hasPointerCapture(e.pointerId))
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            pointerDown.current = true;
+            void noteOn(m);
+          },
+          onPointerEnter: () => {
+            // Glide: drag across the keys with the button held.
+            if (pointerDown.current && down !== m) void noteOn(m);
+          },
+          onKeyDown: (e) => {
+            if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
+              e.preventDefault();
+              e.stopPropagation();
+              void noteOn(m);
+            }
+          },
+          onKeyUp: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              noteOff();
+            }
+          },
+        })}
+      />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>
           Click, hold or drag across the keys, or play with your computer keys (A to ;). Z and X change

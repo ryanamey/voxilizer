@@ -239,6 +239,7 @@ voxilizer/
       components/grit-lab/        Grit Lab: design store, tone designer, scopes, keyboard, design bar,
                                   tone library store (library.ts) and copy/update logic (tone-status.ts)
       components/melody-studio/   Melody Studio: song store, piano roll, song bar, song-tone panel, tone picker
+      components/piano/           the shared C2–C6 keyboard (piano.tsx) and note helpers (keys.ts)
       components/vocal-tuner/     Vocal Tuner: tuner.ts (pure state machine), 7-octave keyboard, mic + reference
                                   tone (audio.ts), pitch trail
       audio/                      AudioEngine host + render worker
@@ -374,6 +375,10 @@ add the production domain as a trusted domain.
   each tone (v1/v2 migrate on load, sound unchanged); the song keeps only the singer.
   **Pending: Codex must run `0001_tones.sql` on Neon (development, then production) before
   tones can be saved.**
+- **One keyboard everywhere (2026-11-02):** `components/piano/` is the shared keyboard (C2–C6, the
+  singing range from deep bass to high soprano, keys sized in % so it fills its container and
+  scrolls only on narrow screens). The Vocal Tuner and the Grit Lab keyboard both use it; the tuner
+  no longer shows C1–B7. A note sung outside C2–C6 points from the nearest edge.
 - Tests: 43 engine tests, 21 web unit tests, 3 Playwright tests (+1 full auth flow behind `E2E_AUTH=1`).
 - Verified in headless Chromium: pages render in light and dark, the dashboard redirects to sign-in,
   form validation works, the piano roll adds / deletes / undoes notes, playback runs.
