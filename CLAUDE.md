@@ -46,7 +46,8 @@ apps/web                Next.js 16 (App Router, Turbopack, Cache Components), Re
   src/app/dashboard/    signed-in area: grit-lab/ (tone actions), melody-studio/ (song actions), vocal-tuner/
   src/components/grit-lab/  Grit Lab: design store, tone designer, keyboard, tone library (library.ts)
   src/components/melody-studio/  Melody Studio: song store, piano roll, song bar, tone picker
-  src/components/vocal-tuner/  the Vocal Tuner (piano, live mic pitch, 2-second hold)
+  src/components/piano/      the shared C2–C6 keyboard used by Grit Lab and the Vocal Tuner
+  src/components/vocal-tuner/  the Vocal Tuner (live mic pitch, 2-second hold)
   src/lib/              env (Zod), auth, DAL (requireUser), songs repository
   src/db/               Drizzle schema + client; migrations in apps/web/drizzle/
   src/proxy.ts          redirects signed-out users from /dashboard

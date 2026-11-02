@@ -3,9 +3,11 @@
  * unit-tested without a microphone.
  */
 
-/** 7 octaves, C1–B7. */
-export const KEY_MIN = 24;
-export const KEY_MAX = 107;
+import { PIANO_HIGH, PIANO_LOW } from "@/components/piano/keys";
+
+/** The singing range, C2–C6 (the same keyboard as Grit Lab and Melody Studio). */
+export const KEY_MIN = PIANO_LOW;
+export const KEY_MAX = PIANO_HIGH;
 /** How long the singer must stay on the note. */
 export const HOLD_MS = 2000;
 /** Short detection dropouts or wobbles shorter than this don't break a hold. */
@@ -142,9 +144,7 @@ export function direction(state: Pick<TunerState, "offCents">, toleranceCents: n
   return state.offCents > 0 ? -1 : 1;
 }
 
-const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-export const isBlack = (midi: number) => [1, 3, 6, 8, 10].includes(((midi % 12) + 12) % 12);
-export const keyName = (midi: number) => `${NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+export { isBlack, keyName } from "@/components/piano/keys";
 
 /** Plain-language distance, e.g. "9 semitones lower" or "an octave higher". */
 export function distanceText(semitones: number): string {
